@@ -23,6 +23,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
+  overflow-x: hidden;
   background: var(--black);
   color: var(--ink);
   font-family: var(--body);
@@ -103,9 +104,9 @@ h1.display, .hero-title {
 .hero .kicker { display: block; margin-bottom: 14px; }
 .hero-title { font-size: clamp(64px, 11vw, 128px); }
 .hero-title .gold { color: var(--gold); }
-.shop-lockup { margin: 10px 0 4px; }
-.shop-lockup .lockup-img-name { display: block; width: min(520px, 88%); height: auto; }
-.shop-lockup .lockup-img-num { display: block; width: min(300px, 52%); height: auto; margin-top: 10px; }
+.shop-lockup { margin: 10px 0 4px; text-align: center; }
+.shop-lockup .lockup-img-name { display: block; width: min(560px, 92%); height: auto; margin: 0 auto; }
+.shop-lockup .lockup-img-num { display: block; width: min(330px, 56%); height: auto; margin: 12px auto 0; }
 .hero-lede { color: var(--muted); font-size: 18px; max-width: 620px; margin: 20px 0 30px; }
 .hero-lede strong { color: var(--ink); font-weight: 600; }
 .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -287,10 +288,10 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 }
 
 /* ---------- Hub (brand front page, route "/") ---------- */
-.hub-lockup { text-align: center; padding-top: 34px; }
-.hub-lockup .lockup-img-name { display: block; width: min(540px, 92%); height: auto; margin: 0 auto; }
-.hub-lockup .lockup-img-num { display: block; width: min(320px, 58%); height: auto; margin: 12px auto 0; }
-.hub-hero { max-width: 540px; margin: 0 auto; padding-top: 28px; }
+.hub-lockup { text-align: center; padding-top: 40px; }
+.hub-lockup .lockup-img-name { display: block; width: min(660px, 94%); height: auto; margin: 0 auto; }
+.hub-lockup .lockup-img-num { display: block; width: min(400px, 64%); height: auto; margin: 14px auto 0; }
+.hub-hero { max-width: 660px; margin: 0 auto; padding-top: 34px; }
 .hub-hero img { width: 100%; height: auto; display: block; }
 .hub-links {
   display: flex; flex-wrap: wrap; justify-content: center; align-items: center;

@@ -1,4 +1,4 @@
-// Client for the Smoke Shop customer accounts API.
+// Client for the Shop 824 customer accounts API.
 // (Ported from the live shop.)
 //
 // The customer token lives in localStorage, alongside the persisted user

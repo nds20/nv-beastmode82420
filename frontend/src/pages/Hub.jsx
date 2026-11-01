@@ -19,7 +19,7 @@ const HUB_LINKS = [
   { label: 'LinkedIn', href: 'https://www.LinkedIn.com/in/beastmode82420' },
   { label: 'Biometric Screening Research', href: 'https://github.com/nds20/nv-genomic-trial-match' },
   { label: '824 Shield', href: 'https://github.com/nds20/824-shield' },
-  { label: 'Smoke Shop', href: 'https://github.com/nds20/nv-beastmode82420' },
+  { label: 'Shop 824', href: 'https://github.com/nds20/nv-beastmode82420' },
   { label: 'Unofficial Muse AI for Windows', href: 'https://github.com/nds20/nv-unofficial-MuseAI-windows-app' },
 ];
 

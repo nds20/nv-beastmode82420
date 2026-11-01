@@ -143,7 +143,7 @@ export default function Login() {
           {loading ? 'Signing In…' : 'Sign In'}
         </button>
         <p className="form-switch">
-          New to Smoke Shop 824? <Link to="/shop/register">Create an account</Link>
+          New to Shop 824? <Link to="/shop/register">Create an account</Link>
         </p>
       </form>
     </main>

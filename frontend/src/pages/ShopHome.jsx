@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
 
-// Smoke Shop 824 storefront landing — route "/shop". (The age-gate
+// Shop 824 storefront landing — route "/shop". (The age-gate
 // overlay is applied by the shop layout in App.jsx.)
 export default function ShopHome() {
   const { products } = useProducts();
@@ -10,9 +10,9 @@ export default function ShopHome() {
   return (
     <main className="shell">
       <section className="hero">
-        <span className="kicker">Smoke Shop 824</span>
+        <span className="kicker">Shop 824</span>
         <h1 className="hero-title">
-          SMOKE SHOP <span className="gold">824</span>
+          SHOP <span className="gold">824</span>
         </h1>
         <p className="hero-lede">
           The 824 storefront — real products, real photos, and straight-up

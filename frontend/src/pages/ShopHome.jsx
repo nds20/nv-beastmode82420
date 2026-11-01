@@ -11,9 +11,9 @@ export default function ShopHome() {
     <main className="shell">
       <section className="hero">
         <span className="kicker">Shop 824</span>
-        <h1 className="hero-title">
-          <span className="kai">BeastMode82420</span>
-          <span className="gold under">824</span>
+        <h1 className="shop-lockup">
+          <img className="lockup-img-name" src="/images/logo-name.svg" alt="BeastMode82420" />
+          <img className="lockup-img-num" src="/images/logo-824.svg" alt="824" />
         </h1>
         <p className="hero-lede">
           The 824 storefront — real products, real photos, and straight-up

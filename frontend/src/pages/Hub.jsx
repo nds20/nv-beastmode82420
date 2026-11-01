@@ -27,8 +27,8 @@ export default function Hub() {
   return (
     <main>
       <section className="hub-lockup">
-        <div className="lockup-name">BeastMode82420</div>
-        <div className="lockup-num">824</div>
+        <img className="lockup-img-name" src="/images/logo-name.svg" alt="BeastMode82420" />
+        <img className="lockup-img-num" src="/images/logo-824.svg" alt="824" />
       </section>
       <section className="hub-hero">
         <img

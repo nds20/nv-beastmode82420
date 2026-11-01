@@ -20,7 +20,7 @@ over untouched.
 ## Layout
 
 ```
-wrangler.toml          Worker "beastmode82420": assets = frontend/dist,
+wrangler.toml          Worker "nv-beastmode82420": assets = frontend/dist,
                        run_worker_first for /api/*, D1 + R2 bindings
 worker/
   shield-entry.js      824 Shield wrapper (the Worker entry point)
@@ -116,7 +116,7 @@ production data.
 
 ## Cutover notes (when the owner says go)
 
-1. Deploy THIS Worker (`name = "beastmode82420"`) — it is a **new**
+1. Deploy THIS Worker (`name = "nv-beastmode82420"`) — it is a **new**
    Worker; the current shop's Worker keeps serving the domain.
 2. It binds the **same** D1 (`smokeshop-db`,
    `bb452b0e-8bfb-4042-8d08-4f8e902c8164`) and the **same** R2 bucket

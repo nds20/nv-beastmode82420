@@ -284,7 +284,7 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 }
 
 /* ---------- Hub (brand front page, route "/") ---------- */
-.hub-hero { max-width: 1206px; margin: 0 auto; }
+.hub-hero { max-width: 540px; margin: 0 auto; padding-top: 28px; }
 .hub-hero img { width: 100%; height: auto; display: block; }
 .hub-links {
   display: flex; flex-wrap: wrap; justify-content: center; align-items: center;

@@ -2,18 +2,18 @@
 //
 // Structure (owner-directed, built to be re-skinned/re-arted without
 // restructuring):
-//   1. Hero artwork — a single <img> (/images/hero-art.svg). The owner
-//      may send an updated front-page image; swap the file (or the
-//      HERO_ART src) and nothing else changes. The baked-in buttons in
-//      the original artwork are cropped off on purpose: the buttons
-//      below are real HTML links.
+//   1. Hero artwork — a single <img> (/images/logo-hero.svg), the
+//      Beast Gohan emblem the owner supplied on 2026-11-01 (replacing
+//      the original stadium banner). It sits centered at a constrained
+//      width (.hub-hero); its black surround blends into the page.
+//      The buttons below are real HTML links.
 //   2. The pill link row — real pill buttons centered under the hero,
 //      styled to match the artwork (gold outline, black fill, gold
 //      text). Exactly five, in the owner's order.
 //   3. About 824 — the owner's company blurb, verbatim, below the
 //      links.
 
-const HERO_ART = '/images/hero-art.svg';
+const HERO_ART = '/images/logo-hero.svg';
 
 const HUB_LINKS = [
   { label: 'LinkedIn', href: 'https://www.LinkedIn.com/in/beastmode82420' },
@@ -29,9 +29,9 @@ export default function Hub() {
       <section className="hub-hero">
         <img
           src={HERO_ART}
-          alt="Beastmode 82420 — Beast Gohan logo over a black and gold stadium"
-          width="1206"
-          height="690"
+          alt="Beastmode 82420 — Beast Gohan emblem"
+          width="700"
+          height="792"
         />
       </section>
 

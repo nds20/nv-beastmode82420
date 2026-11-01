@@ -269,15 +269,22 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 .copyright { color: var(--muted); font-size: 13px; margin-top: 14px; }
 
 /* ---------- Responsive ---------- */
+@media (max-width: 860px) {
+  /* Mobile header: brand centered on its own row, nav spread evenly
+     underneath — nothing wraps or overflows the screen. */
+  .header-in { flex-direction: column; align-items: center; gap: 10px; padding-top: 12px; padding-bottom: 10px; }
+  .site-nav { width: 100%; justify-content: space-between; gap: 0; }
+  .site-nav a { white-space: nowrap; }
+}
 @media (max-width: 900px) {
   .pd-layout, .cart-layout { grid-template-columns: 1fr; }
   .hero { padding-top: 52px; }
 }
 @media (max-width: 640px) {
-  .site-nav { gap: 16px; }
-  .site-nav a { font-size: 11.5px; letter-spacing: 1.1px; }
-  .brand { font-size: 24px; }
-  .brand .num { font-size: 27px; }
+  .site-nav { gap: 0; }
+  .site-nav a { font-size: 12px; letter-spacing: 1.1px; }
+  .brand { font-size: 25px; }
+  .brand .num { font-size: 28px; }
   .section-title { font-size: 32px; }
   .page-title { font-size: 44px; }
   .pd-name { font-size: 42px; }

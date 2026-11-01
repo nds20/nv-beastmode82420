@@ -1,0 +1,48 @@
+# Beastmode 82420 — Cloudflare Worker configuration.
+#
+# This project deploys as a Worker with static assets (not a Pages
+# project): the Worker script in worker/shield-entry.js runs the shop
+# API — the handlers under functions/api/, ported unchanged from the
+# live Smoke Shop — behind 824 Shield, and the built React app in
+# ./frontend/dist is served as static assets.
+#
+# The D1 binding below points at the EXISTING smokeshop-db database,
+# so every current product, order, admin account and customer carries
+# over untouched. The old shop keeps serving beastmode82420.com until
+# the custom domains are moved to this Worker (see README.md).
+
+name = "beastmode82420"
+
+main = "worker/shield-entry.js"
+compatibility_date = "2026-09-01"
+
+# The built storefront (frontend/dist). `run_worker_first` sends every
+# /api/* request to the Worker script before the asset store is
+# consulted, so API calls always reach the code (including
+# /api/photos/... for R2 uploads). `not_found_handling` gives the
+# React SPA its client-side routes (/shop/cart, /shop/product/:id…)
+# when a visitor lands on one directly.
+[assets]
+directory = "./frontend/dist"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+not_found_handling = "single-page-application"
+
+# Product / order / account data — the EXISTING database (same id as
+# the live shop's wrangler.toml). Do not create a new one.
+[[d1_databases]]
+binding = "DB"
+database_name = "smokeshop-db"
+database_id = "bb452b0e-8bfb-4042-8d08-4f8e902c8164"
+
+# Uploaded product photos — same R2 bucket as the live shop.
+[[r2_buckets]]
+binding = "PRODUCT_PHOTOS"
+bucket_name = "smokeshop-product-photos"
+
+# Admin credentials (SMOKESHOP_ADMIN_USER / SMOKESHOP_ADMIN_PASSWORD /
+# SMOKESHOP_ADMIN_SECRET) are NOT set here. Add them as encrypted
+# secrets in the dashboard (this Worker -> Settings -> Variables and
+# Secrets) or with `wrangler secret put` — never commit real values.
+# Stripe keys (STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET) likewise;
+# while unset, card checkout stays in demo mode exactly as before.

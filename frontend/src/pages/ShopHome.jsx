@@ -15,9 +15,9 @@ export default function ShopHome() {
           SMOKE SHOP <span className="gold">824</span>
         </h1>
         <p className="hero-lede">
-          The real shelf, online: <strong>nicotine vapes</strong> — with real product
-          photos and straight-up pricing. No price listed means it is genuinely still
-          to be confirmed, never made up.
+          The 824 storefront — real products, real photos, and straight-up
+          pricing. No price listed means it is genuinely still to be
+          confirmed, never made up.
         </p>
         <div className="hero-actions">
           <Link className="btn" to="/shop/products">
@@ -37,21 +37,18 @@ export default function ShopHome() {
       </section>
 
       <h2 className="section-title">Featured Products</h2>
-      <p className="section-sub">The current shelf — two Raz nicotine vapes.</p>
-      <div className="grid">
-        {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
-      </div>
-
-      <h2 className="section-title">Shop by Category</h2>
-      <div className="cat-strip">
-        <Link className="cat-tile" to="/shop/products">
-          <h3>Nicotine Vapes</h3>
-          <p>Nicotine vapes — Raz in Blue Raz and Blueberry Yummy.</p>
-          <span className="go">Shop now →</span>
-        </Link>
-      </div>
+      <p className="section-sub">The current shelf.</p>
+      {products.length === 0 ? (
+        <p className="empty-msg">
+          Nothing on the shelf yet — 824 merchandise is on the way.
+        </p>
+      ) : (
+        <div className="grid">
+          {products.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      )}
 
       <div className="badges">
         <div className="badge-card">

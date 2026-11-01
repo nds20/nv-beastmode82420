@@ -1,18 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// The last-known-good catalog, kept in the bundle so the storefront always
-// renders — including on a static deploy where no API server is running.
-// When the product API is reachable it replaces this list, and anything
-// the admin adds there shows up here with no code changes.
-// (Ported from the live shop; `about` lines are the shop's existing
-// product copy, shown on detail pages when present.)
-const FALLBACK_PRODUCTS = [
-  { id: 4, name: 'Raz Nicotine Vape', subtitle: 'Nicotine Vape · Blue Raz', category: 'nic-vapes', type: 'Nicotine', thc: null, strength: '12W', price: null, unit: '1ct', effects: [], tile: ['#7dd3fc', '#38bdf8'], image: '/images/products/raz-nicotine-vape.svg', about: 'A nicotine vape in the Blue Raz flavor, rated at 12W. Sold as a single count (1ct).' },
-  { id: 6, name: 'Raz Blueberry Yummy', subtitle: 'Nicotine Vape · Blueberry Yummy', category: 'nic-vapes', type: 'Nicotine', thc: null, strength: 'TBD', price: null, unit: '1ct', effects: [], tile: ['#2bff62', '#00c853'], image: '/images/products/raz-blueberry-yummy.svg', about: 'A nicotine vape in the Blueberry Yummy flavor. Sold as a single count (1ct). Strength: TBD.' },
-];
-
+// The catalog comes from the product API only. There is deliberately NO
+// bundled fallback list: the owner emptied the catalog on 2026-11-01 (the
+// shop is being kept for future 824 merchandise), and a previous fallback
+// array kept deleted products on display even when the API returned an
+// empty list. An empty response from the API means an empty shelf.
 export const useProducts = () => {
-  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,13 +17,11 @@ export const useProducts = () => {
       const response = await fetch('/api/products');
       if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setProducts(data);
-      }
+      setProducts(Array.isArray(data) ? data : []);
     } catch (err) {
-      // API unreachable (e.g. static hosting): keep showing the fallback
-      // catalog instead of an empty shop.
+      // API unreachable: show the empty shelf rather than invented stock.
       setError(err.message);
+      setProducts([]);
     } finally {
       setLoading(false);
     }

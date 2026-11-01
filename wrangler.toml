@@ -32,8 +32,8 @@ not_found_handling = "single-page-application"
 # the live shop's wrangler.toml). Do not create a new one.
 [[d1_databases]]
 binding = "DB"
-database_name = "smokeshop-db"
-database_id = "bb452b0e-8bfb-4042-8d08-4f8e902c8164"
+database_name = "beastmode82420-db"
+database_id = "51f2d1ee-e244-47ac-9fe6-fa03aa28361a"
 
 # Uploaded product photos — same R2 bucket as the live shop.
 [[r2_buckets]]

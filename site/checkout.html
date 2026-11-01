@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Checkout at Smoke Shop 824. 21+ only.">
+<title>Checkout · Smoke Shop 824</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="shell header-in">
+    <a class="brand" href="index.html">SMOKE SHOP <span class="num">824</span> <span class="over">21+</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="login.html">Log In</a>
+      <a href="cart.html">Cart<span class="cart-badge" data-cart-count hidden>0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="page-head">
+    <span class="kicker">Almost There</span>
+    <h1 class="page-title">CHECKOUT</h1>
+  </div>
+
+  <div id="emptyState" hidden>
+    <p class="empty-msg">There's nothing to check out — your cart is empty.</p>
+    <a class="btn" href="products.html">Shop Products</a>
+  </div>
+
+  <div id="blockedState" hidden>
+    <div class="notice danger">
+      <strong>Checkout is blocked.</strong> Your cart contains an item whose price hasn't been
+      confirmed yet (<span id="blockedNames"></span>). We never guess a price, so checkout unlocks
+      as soon as every item in the cart is priced — or you can remove the Price-TBD item and check out the rest.
+    </div>
+    <a class="btn" href="cart.html">Back to Cart</a>
+    <a class="btn-ghost" href="products.html">Keep Shopping</a>
+  </div>
+
+  <div class="cart-layout" id="checkoutLayout" hidden>
+    <form class="form-card wide" id="checkoutForm" novalidate>
+      <fieldset>
+        <legend>Contact</legend>
+        <div class="field"><label for="coEmail">Email</label><input id="coEmail" type="email" required placeholder="you@example.com"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Shipping</legend>
+        <div class="field-row">
+          <div class="field"><label for="coFirst">First Name</label><input id="coFirst" type="text" required></div>
+          <div class="field"><label for="coLast">Last Name</label><input id="coLast" type="text" required></div>
+        </div>
+        <div class="field"><label for="coAddr">Street Address</label><input id="coAddr" type="text" required></div>
+        <div class="field-row">
+          <div class="field"><label for="coCity">City</label><input id="coCity" type="text" required></div>
+          <div class="field"><label for="coZip">ZIP</label><input id="coZip" type="text" inputmode="numeric" required></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Payment</legend>
+        <div class="field"><label for="coCard">Card Number</label><input id="coCard" type="text" inputmode="numeric" placeholder="•••• •••• •••• ••••" required></div>
+        <div class="field-row">
+          <div class="field"><label for="coExp">Expiry</label><input id="coExp" type="text" placeholder="MM / YY" required></div>
+          <div class="field"><label for="coCvc">CVC</label><input id="coCvc" type="text" inputmode="numeric" required></div>
+        </div>
+      </fieldset>
+      <label class="check-line"><input type="checkbox" id="coAge" required> <span>I confirm I am 21 or older and an adult signature will be provided on delivery.</span></label>
+      <p class="form-error" id="coError" role="alert" hidden></p>
+      <button class="btn" type="submit" style="width:100%;">Place Order</button>
+      <p class="sum-note">Demo checkout — no real payment is processed on this static build.</p>
+    </form>
+
+    <aside class="summary-card">
+      <h3>Order Summary</h3>
+      <div id="sumLines"></div>
+      <div class="sum-row"><span>Subtotal</span><span id="sumSubtotal">$0.00</span></div>
+      <div class="sum-row"><span>Tax (10.2%)</span><span id="sumTax">$0.00</span></div>
+      <div class="sum-row total"><span>Total</span><span id="sumTotal">$0.00</span></div>
+    </aside>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="shell">
+    <p class="age-note">You must be 21 or older to purchase products from this site. Please use responsibly.</p>
+    <nav aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="login.html">Log In</a>
+      <a href="cart.html">Cart</a>
+    </nav>
+    <p class="fine">Smoke Shop 824. Prices are shown only where confirmed; everything else is listed as Price TBD — that's a promise, not a placeholder.</p>
+    <p class="copyright">© 2026 Smoke Shop 824 · beastmode82420.com</p>
+  </div>
+</footer>
+
+<script src="js/products.js"></script>
+<script src="js/main.js"></script>
+<script>
+  var cart = window.getCart();
+  var totals = window.cartTotals();
+
+  if (cart.length === 0) {
+    document.getElementById('emptyState').hidden = false;
+  } else if (totals.hasTbd) {
+    var names = cart.filter(function (i) { return window.getProduct(i.slug).price == null; })
+      .map(function (i) { return window.getProduct(i.slug).name; }).join(', ');
+    document.getElementById('blockedNames').textContent = names;
+    document.getElementById('blockedState').hidden = false;
+  } else {
+    document.getElementById('checkoutLayout').hidden = false;
+    document.getElementById('sumLines').innerHTML = cart.map(function (i) {
+      var p = window.getProduct(i.slug);
+      return '<div class="sum-row"><span>' + p.name + ' × ' + i.qty + '</span><span>' + window.money(p.price * i.qty) + '</span></div>';
+    }).join('');
+    document.getElementById('sumSubtotal').textContent = window.money(totals.subtotal);
+    document.getElementById('sumTax').textContent = window.money(totals.tax);
+    document.getElementById('sumTotal').textContent = window.money(totals.total);
+  }
+
+  document.getElementById('checkoutForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var err = document.getElementById('coError');
+    var required = ['coEmail', 'coFirst', 'coLast', 'coAddr', 'coCity', 'coZip', 'coCard', 'coExp', 'coCvc'];
+    var missing = required.some(function (id) { return !document.getElementById(id).value.trim(); });
+    if (missing) { err.textContent = 'Please fill in every field before placing your order.'; err.hidden = false; return; }
+    if (!document.getElementById('coAge').checked) { err.textContent = 'Please confirm you are 21 or older.'; err.hidden = false; return; }
+    var number = 'SS824-' + Math.floor(100000 + Math.random() * 900000);
+    sessionStorage.setItem('ss824_last_order', JSON.stringify({
+      number: number, total: window.money(totals.total), count: totals.count
+    }));
+    window.saveCart([]);
+    window.location.href = 'order-confirmation.html';
+  });
+</script>
+</body>
+</html>

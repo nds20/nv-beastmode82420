@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Sign in to Smoke Shop 824. 21+ only.">
+<title>Log In · Smoke Shop 824</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="shell header-in">
+    <a class="brand" href="index.html">SMOKE SHOP <span class="num">824</span> <span class="over">21+</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="login.html" aria-current="page">Log In</a>
+      <a href="cart.html">Cart<span class="cart-badge" data-cart-count hidden>0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="page-head">
+    <span class="kicker">Accounts</span>
+    <h1 class="page-title">WELCOME BACK</h1>
+    <p class="section-sub">Accounts are being wired up in the next phase of the new site — for now this page is here so the design is complete end to end.</p>
+  </div>
+
+  <div class="notice" id="phaseNotice" hidden>
+    <strong>Next phase:</strong> customer accounts plug into the shop's live system when the new site connects to the backend. Nothing you type here is sent or stored yet.
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:26px;align-items:start;">
+    <form class="form-card" id="loginForm" style="max-width:none;">
+      <fieldset>
+        <legend>Sign In</legend>
+        <div class="field"><label for="liEmail">Email</label><input id="liEmail" type="email" placeholder="you@example.com" required></div>
+        <div class="field"><label for="liPass">Password</label><input id="liPass" type="password" placeholder="••••••••" required></div>
+      </fieldset>
+      <button class="btn" type="submit" style="width:100%;">Sign In</button>
+      <p class="form-switch">Forgot your password? Account recovery arrives with live accounts.</p>
+    </form>
+
+    <form class="form-card" id="registerForm" style="max-width:none;">
+      <fieldset>
+        <legend>Create Account</legend>
+        <div class="field"><label for="rgName">Full Name</label><input id="rgName" type="text" required></div>
+        <div class="field"><label for="rgEmail">Email</label><input id="rgEmail" type="email" placeholder="you@example.com" required></div>
+        <div class="field"><label for="rgPass">Password</label><input id="rgPass" type="password" placeholder="Choose a strong password" required></div>
+        <label class="check-line"><input type="checkbox" id="rgAge" required> <span>I confirm I am 21 years of age or older.</span></label>
+      </fieldset>
+      <button class="btn" type="submit" style="width:100%;">Register</button>
+      <p class="form-switch">One account per customer. You must be 21+ to register.</p>
+    </form>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="shell">
+    <p class="age-note">You must be 21 or older to purchase products from this site. Please use responsibly.</p>
+    <nav aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="login.html">Log In</a>
+      <a href="cart.html">Cart</a>
+    </nav>
+    <p class="fine">Smoke Shop 824. Prices are shown only where confirmed; everything else is listed as Price TBD — that's a promise, not a placeholder.</p>
+    <p class="copyright">© 2026 Smoke Shop 824 · beastmode82420.com</p>
+  </div>
+</footer>
+
+<script src="js/products.js"></script>
+<script src="js/main.js"></script>
+<script>
+  ['loginForm', 'registerForm'].forEach(function (id) {
+    document.getElementById(id).addEventListener('submit', function (e) {
+      e.preventDefault();
+      document.getElementById('phaseNotice').hidden = false;
+      document.getElementById('phaseNotice').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+</script>
+</body>
+</html>

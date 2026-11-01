@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Smoke Shop 824 — nicotine vapes, real photos, straight-up pricing. 21+ only.">
+<title>Smoke Shop 824 · Beastmode</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="shell header-in">
+    <a class="brand" href="index.html">SMOKE SHOP <span class="num">824</span> <span class="over">21+</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="products.html">Products</a>
+      <a href="login.html">Log In</a>
+      <a href="cart.html">Cart<span class="cart-badge" data-cart-count hidden>0</span></a>
+    </nav>
+  </div>
+</header>
+
+<div class="age-overlay" id="ageOverlay" hidden>
+  <section class="ag-card" role="dialog" aria-modal="true" aria-labelledby="ag-title">
+    <div id="ageCardMain">
+      <p class="ag-mark">SMOKE SHOP <span class="num">824</span></p>
+      <h1 id="ag-title">Verify Your Age</h1>
+      <p class="ag-desc">This shop sells nicotine products. You must be 21 or older to enter — no exceptions.</p>
+      <form id="ageForm" novalidate>
+        <label class="sr-only" for="ageZip">ZIP code</label>
+        <input class="ag-input" id="ageZip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="ZIP CODE">
+        <label class="check-line"><input type="checkbox" id="ageConfirm"> <span>I confirm I am 21 years of age or older.</span></label>
+        <p class="form-error" id="ageError" role="alert" hidden></p>
+        <button class="btn-green" type="submit">Enter the Shop</button>
+      </form>
+      <button class="ag-deny" id="ageDeny" type="button">I'm under 21</button>
+    </div>
+    <div id="ageCardDenied" hidden>
+      <p class="ag-mark">SMOKE SHOP <span class="num">824</span></p>
+      <h1>Come Back at 21</h1>
+      <p class="ag-desc">Sorry — this store is for adults 21 and over only, by law. We'll see you on the other side of that birthday.</p>
+    </div>
+  </section>
+</div>
+
+<main class="shell">
+  <section class="hero">
+    <span class="kicker">Beastmode · Rochester, NY</span>
+    <h1 class="hero-title">SMOKE SHOP<br><span class="gold">824</span></h1>
+    <p class="hero-lede">The real shelf, online: <strong>nicotine vapes only</strong>, with real product photos and straight-up pricing. If a price isn't listed, it isn't confirmed yet — <strong>we never make one up.</strong></p>
+    <div class="hero-actions">
+      <a class="btn" href="products.html">Shop Products</a>
+      <a class="btn-ghost" href="#featured">Featured Drops</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="v">21+</div><div class="k">Adults Only</div></div>
+      <div class="hero-stat"><div class="v">100%</div><div class="k">Real Photos</div></div>
+      <div class="hero-stat"><div class="v">0</div><div class="k">Made-Up Prices</div></div>
+    </div>
+  </section>
+
+  <h2 class="section-title" id="featured">Featured Products</h2>
+  <p class="section-sub">The current lineup — every item on the shelf, nothing hidden.</p>
+  <div class="grid" id="featuredGrid"></div>
+
+  <h2 class="section-title">Shop by Category</h2>
+  <div class="cat-strip">
+    <a class="cat-tile" href="products.html">
+      <h3>Nicotine Vapes</h3>
+      <p>Disposable nicotine vapes — Raz in Blue Raz and Blueberry Yummy.</p>
+      <span class="go">Browse the shelf →</span>
+    </a>
+  </div>
+
+  <div class="badges">
+    <div class="badge-card"><div class="badge-icon">🔒</div><h3>Secure Checkout</h3><p>Your information stays protected, start to finish.</p></div>
+    <div class="badge-card"><div class="badge-icon">🪪</div><h3>Strictly 21+</h3><p>Age-verified at the door and at delivery. No shortcuts.</p></div>
+    <div class="badge-card"><div class="badge-icon">🚚</div><h3>Discreet Delivery</h3><p>Fast shipping in plain packaging, every order.</p></div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="shell">
+    <p class="age-note">You must be 21 or older to purchase products from this site. Please use responsibly.</p>
+    <nav aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="login.html">Log In</a>
+      <a href="cart.html">Cart</a>
+    </nav>
+    <p class="fine">Smoke Shop 824. Prices are shown only where confirmed; everything else is listed as Price TBD — that's a promise, not a placeholder.</p>
+    <p class="copyright">© 2026 Smoke Shop 824 · beastmode82420.com</p>
+  </div>
+</footer>
+
+<script src="js/products.js"></script>
+<script src="js/main.js"></script>
+<script>
+  var grid = document.getElementById('featuredGrid');
+  grid.innerHTML = window.PRODUCTS.map(function (p) {
+    return '<article class="card">' +
+      '<div class="thumb" style="background:linear-gradient(135deg,' + p.tile[0] + ',' + p.tile[1] + ')">' +
+        '<img src="' + p.image + '" alt="' + p.name + '">' +
+        '<a class="view-btn" href="' + p.page + '">View Details</a>' +
+      '</div>' +
+      '<div class="card-info">' +
+        '<p class="card-type">' + p.type + '</p>' +
+        '<h3 class="card-name">' + p.name + '</h3>' +
+        '<p class="card-sub">' + p.subtitle + '</p>' +
+        '<p class="card-strength">' + p.strength + '</p>' +
+        '<div class="card-footer"><span class="card-price' + (p.price == null ? ' tbd' : '') + '">' + window.priceLabel(p) + '</span>' +
+        '<button class="add-btn" data-add-to-cart="' + p.slug + '">Add</button></div>' +
+      '</div></article>';
+  }).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Raz Nicotine Vape — Blue Raz. Smoke Shop 824. 21+ only.">
+<title>Raz Nicotine Vape · Smoke Shop 824</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="shell header-in">
+    <a class="brand" href="index.html">SMOKE SHOP <span class="num">824</span> <span class="over">21+</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="products.html" aria-current="page">Products</a>
+      <a href="login.html">Log In</a>
+      <a href="cart.html">Cart<span class="cart-badge" data-cart-count hidden>0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell">
+  <a class="back-link" href="products.html">← Back to the shelf</a>
+  <div class="pd-layout">
+    <section>
+      <div class="pd-main-image" style="background:linear-gradient(135deg,#7dd3fc,#38bdf8)">
+        <img src="images/products/raz-nicotine-vape.svg" alt="Raz Nicotine Vape">
+      </div>
+    </section>
+    <section>
+      <span class="pd-type">Nicotine</span>
+      <h1 class="pd-name">Raz Nicotine Vape</h1>
+      <p class="pd-subtitle">Nicotine Vape · Blue Raz</p>
+      <div class="pd-specs">
+        <div class="pd-spec"><span class="pd-label">Strength</span><span class="pd-value">12W</span></div>
+        <div class="pd-spec"><span class="pd-label">Unit Size</span><span class="pd-value">1ct</span></div>
+        <div class="pd-spec"><span class="pd-label">Category</span><span class="pd-value">Nicotine Vapes</span></div>
+        <div class="pd-spec"><span class="pd-label">Flavor</span><span class="pd-value">Blue Raz</span></div>
+      </div>
+      <div class="pd-price tbd">Price TBD</div>
+      <div class="pd-qty">
+        <label for="qtyVal">Quantity</label>
+        <div class="qty-control">
+          <button type="button" id="qtyMinus" aria-label="Decrease quantity">−</button>
+          <span class="qty-val" id="qtyVal">1</span>
+          <button type="button" id="qtyPlus" aria-label="Increase quantity">+</button>
+        </div>
+      </div>
+      <button class="btn pd-add" id="detailAdd">Add to Cart</button>
+      <p class="sum-note">Price not confirmed yet — this item can ride in your cart, but checkout stays locked until its price is set.</p>
+      <div class="pd-about">
+        <h3>About This Product</h3>
+        <p>A nicotine vape in the Blue Raz flavor, rated at 12W. Sold as a single count (1ct).</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="shell">
+    <p class="age-note">You must be 21 or older to purchase products from this site. Please use responsibly.</p>
+    <nav aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="login.html">Log In</a>
+      <a href="cart.html">Cart</a>
+    </nav>
+    <p class="fine">Smoke Shop 824. Prices are shown only where confirmed; everything else is listed as Price TBD — that's a promise, not a placeholder.</p>
+    <p class="copyright">© 2026 Smoke Shop 824 · beastmode82420.com</p>
+  </div>
+</footer>
+
+<script src="js/products.js"></script>
+<script src="js/main.js"></script>
+<script>
+  var qty = 1;
+  var qtyVal = document.getElementById('qtyVal');
+  document.getElementById('qtyMinus').addEventListener('click', function () {
+    qty = Math.max(1, qty - 1); qtyVal.textContent = qty;
+  });
+  document.getElementById('qtyPlus').addEventListener('click', function () {
+    qty = Math.min(10, qty + 1); qtyVal.textContent = qty;
+  });
+  document.getElementById('detailAdd').addEventListener('click', function () {
+    window.addToCart('raz-nicotine-vape', qty);
+    var btn = this;
+    btn.textContent = 'Added to Cart ✓';
+    btn.classList.add('added');
+    setTimeout(function () { btn.textContent = 'Add to Cart'; btn.classList.remove('added'); }, 1200);
+  });
+</script>
+</body>
+</html>

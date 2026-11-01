@@ -248,30 +248,6 @@ h1.display, .hero-title {
 fieldset { border: none; margin-bottom: 8px; }
 legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; margin-bottom: 14px; padding-top: 10px; }
 
-/* ---------- Age gate ---------- */
-.age-overlay {
-  position: fixed; inset: 0; z-index: 100; background: rgba(5, 5, 6, .94);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.age-overlay[hidden] { display: none; }
-.ag-card {
-  background: var(--panel); border: 1px solid var(--gold); border-radius: 18px;
-  max-width: 430px; width: 100%; padding: 36px 34px; text-align: center;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
-}
-.ag-mark { font-family: var(--display); font-size: 21px; letter-spacing: 3px; color: var(--muted); }
-.ag-mark .num { color: var(--gold); }
-.ag-card h1 { font-family: var(--display); font-size: 40px; letter-spacing: 1.6px; font-weight: 400; margin: 12px 0 8px; }
-.ag-desc { color: var(--muted); font-size: 15px; margin-bottom: 22px; }
-.ag-input {
-  width: 100%; background: var(--black); border: 1px solid var(--line); color: var(--ink);
-  border-radius: 8px; padding: 13px 14px; font-size: 16px; text-align: center; letter-spacing: 2px;
-}
-.ag-input:focus { outline: none; border-color: var(--gold); }
-.ag-card .check-line { text-align: left; justify-content: center; }
-.ag-deny { display: inline-block; margin-top: 16px; font-size: 13px; color: var(--muted); background: none; border: none; cursor: pointer; text-decoration: underline; }
-.ag-deny:hover { color: var(--danger); }
-
 /* ---------- Confirmation ---------- */
 .confirm-wrap { max-width: 620px; margin: 0 auto; text-align: center; padding: 40px 0 10px; }
 .confirm-check {
@@ -282,7 +258,6 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--gold-dim); margin-top: 70px; padding: 38px 0 44px; background: #070708; }
-.age-note { font-weight: 600; margin-bottom: 16px; }
 .site-footer nav { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 16px; }
 .site-footer nav a { color: var(--muted); font-size: 13px; letter-spacing: 1.4px; text-transform: uppercase; font-weight: 600; }
 .site-footer nav a:hover { color: var(--gold); }

@@ -7,8 +7,7 @@ import {
   clearCustomerToken,
 } from '../services/customersApi';
 
-// Auth + age-verification state — ported from the live shop's
-// AuthContext. The user object is built from a REAL customer profile
+// Auth state — ported from the live shop's AuthContext. The user object is built from a REAL customer profile
 // returned by the API instead of being invented client-side.
 export const AuthContext = createContext();
 
@@ -31,20 +30,6 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
-  const [ageVerified, setAgeVerified] = useState(() => {
-    try {
-      return localStorage.getItem('ageVerified') === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [zip, setZip] = useState(() => {
-    try {
-      return localStorage.getItem('zip') || '';
-    } catch {
-      return '';
-    }
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -56,28 +41,6 @@ export const AuthProvider = ({ children }) => {
       // Storage unavailable — session just won't persist.
     }
   }, [user]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ageVerified', String(ageVerified));
-    } catch {
-      // ignore
-    }
-  }, [ageVerified]);
-
-  useEffect(() => {
-    try {
-      if (zip) localStorage.setItem('zip', zip);
-    } catch {
-      // ignore
-    }
-  }, [zip]);
-
-  const verifyAge = useCallback(async (zipCode) => {
-    setAgeVerified(true);
-    setZip(zipCode);
-    return true;
-  }, []);
 
   // Real sign-in against POST /api/customers/login. Throws on failure so
   // callers can show the message and stay on the form.
@@ -147,11 +110,8 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
-    ageVerified,
-    zip,
     loading,
     error,
-    verifyAge,
     login,
     logout,
     signup,

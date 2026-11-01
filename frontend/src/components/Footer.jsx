@@ -4,9 +4,6 @@ export default function Footer() {
   return (
     <footer className="site-footer">
       <div className="shell">
-        <p className="age-note">
-          You must be 21 or older to purchase products from this site. Please consume responsibly.
-        </p>
         <nav aria-label="Footer">
           <Link to="/">Hub</Link>
           <Link to="/shop">Shop</Link>

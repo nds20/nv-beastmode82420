@@ -26,10 +26,6 @@ export default function ShopHome() {
         </div>
         <div className="hero-stats">
           <div className="hero-stat">
-            <div className="v">21+</div>
-            <div className="k">Adults Only</div>
-          </div>
-          <div className="hero-stat">
             <div className="v">100%</div>
             <div className="k">Real Photos</div>
           </div>

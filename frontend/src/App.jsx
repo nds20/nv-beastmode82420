@@ -3,7 +3,6 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import AgeGate from './components/AgeGate';
 import Hub from './pages/Hub';
 import ShopHome from './pages/ShopHome';
 import Products from './pages/Products';
@@ -14,16 +13,9 @@ import OrderConfirmation from './pages/OrderConfirmation';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
-// Shop layout — every /shop route sits behind the 21+ age gate until
-// the visitor verifies (the overlay renders above the page; verifying
-// once persists in localStorage via AuthContext).
+// Shop layout — plain pass-through for the /shop routes.
 function ShopLayout() {
-  return (
-    <>
-      <AgeGate />
-      <Outlet />
-    </>
-  );
+  return <Outlet />;
 }
 
 export default function App() {

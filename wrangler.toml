@@ -40,8 +40,8 @@ database_id = "bb452b0e-8bfb-4042-8d08-4f8e902c8164"
 binding = "PRODUCT_PHOTOS"
 bucket_name = "smokeshop-product-photos"
 
-# Admin credentials (SMOKESHOP_ADMIN_USER / SMOKESHOP_ADMIN_PASSWORD /
-# SMOKESHOP_ADMIN_SECRET) are NOT set here. Add them as encrypted
+# Admin credentials (BEASTMODE_ADMIN_USER / BEASTMODE_ADMIN_PASSWORD /
+# BEASTMODE_ADMIN_SECRET) are NOT set here. Add them as encrypted
 # secrets in the dashboard (this Worker -> Settings -> Variables and
 # Secrets) or with `wrangler secret put` — never commit real values.
 # Stripe keys (STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET) likewise;

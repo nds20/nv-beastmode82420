@@ -122,8 +122,8 @@ production data.
    `bb452b0e-8bfb-4042-8d08-4f8e902c8164`) and the **same** R2 bucket
    (`smokeshop-product-photos`), so no data moves.
 3. Set the same secrets on the new Worker as the old one has
-   (`SMOKESHOP_ADMIN_USER` / `SMOKESHOP_ADMIN_PASSWORD` /
-   `SMOKESHOP_ADMIN_SECRET`, and Stripe keys if used) — never commit
+   (`BEASTMODE_ADMIN_USER` / `BEASTMODE_ADMIN_PASSWORD` /
+   `BEASTMODE_ADMIN_SECRET`, and Stripe keys if used) — never commit
    them.
 4. Verify on the workers.dev URL (hub, shop, `/api/health`,
    `/api/products`, a Shield SQLi block).

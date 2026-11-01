@@ -3,8 +3,8 @@
 //
 // Same contract as the Node version:
 //   - Credentials come from the environment only:
-//       SMOKESHOP_ADMIN_USER / SMOKESHOP_ADMIN_PASSWORD
-//       SMOKESHOP_ADMIN_SECRET (optional token-signing secret; if omitted,
+//       BEASTMODE_ADMIN_USER / BEASTMODE_ADMIN_PASSWORD
+//       BEASTMODE_ADMIN_SECRET (optional token-signing secret; if omitted,
 //       the signing key is derived from the admin password, as in Node).
 //   - A successful login returns a signed, expiring bearer token
 //     (base64url payload + HMAC-SHA256 signature), valid for 8 hours.
@@ -25,8 +25,8 @@ const encoder = new TextEncoder();
 
 export function adminCredentials(env) {
   return {
-    user: env.SMOKESHOP_ADMIN_USER || '',
-    password: env.SMOKESHOP_ADMIN_PASSWORD || '',
+    user: env.BEASTMODE_ADMIN_USER || '',
+    password: env.BEASTMODE_ADMIN_PASSWORD || '',
   };
 }
 
@@ -37,7 +37,7 @@ export function isConfigured(env) {
 }
 
 function signingKey(env) {
-  if (env.SMOKESHOP_ADMIN_SECRET) return env.SMOKESHOP_ADMIN_SECRET;
+  if (env.BEASTMODE_ADMIN_SECRET) return env.BEASTMODE_ADMIN_SECRET;
   const { password } = adminCredentials(env);
   return `smokeshop-admin::${password}`;
 }

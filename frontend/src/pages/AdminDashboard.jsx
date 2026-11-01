@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   clearAdminToken,
+  fetchAdminCustomers,
   fetchAdminOrder,
   fetchAdminOrders,
   fetchAdminProducts,
@@ -20,9 +21,9 @@ import { money, priceLabel } from '../components/ProductCard';
 //   - PATCH /api/admin/orders/:id/seen  -> the only status change the
 //     API supports ('new' -> 'seen'); there is deliberately no other
 //     status control here because no endpoint backs one.
+//   - GET   /api/admin/customers        -> { customers }, newest first,
+//     public fields only (never salt/hash)
 //   - GET   /api/products               -> the shared catalog list
-// There is no admin customers endpoint in the API, so there is no
-// customers section — customer details appear on each order instead.
 //
 // A 401 from any call means the token expired or was revoked:
 // adminApi clears it, and this page sends the admin back to sign in.
@@ -36,6 +37,8 @@ export default function AdminDashboard() {
   const [ordersError, setOrdersError] = useState('');
   const [products, setProducts] = useState(null);
   const [productsError, setProductsError] = useState('');
+  const [customers, setCustomers] = useState(null);
+  const [customersError, setCustomersError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [details, setDetails] = useState({});
   const [detailError, setDetailError] = useState('');
@@ -80,6 +83,15 @@ export default function AdminDashboard() {
       })
       .catch((err) => {
         if (!cancelled) handleError(err, setProductsError);
+      });
+    fetchAdminCustomers()
+      .then((data) => {
+        if (!cancelled) {
+          setCustomers(Array.isArray(data.customers) ? data.customers : []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) handleError(err, setCustomersError);
       });
     return () => {
       cancelled = true;
@@ -250,6 +262,50 @@ export default function AdminDashboard() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      <h2 className="section-title" style={{ marginTop: 44 }}>
+        Customers
+      </h2>
+      <p className="section-sub">
+        Every registered shopper, newest first — the read-back of who
+        has an account.
+      </p>
+      {customersError && (
+        <p className="form-error" role="alert">
+          {customersError}
+        </p>
+      )}
+      {customers === null && !customersError && (
+        <p className="card-sub">Loading customers…</p>
+      )}
+      {customers !== null && customers.length === 0 && (
+        <p className="empty-msg">
+          No customers yet. When a shopper registers an account, they
+          appear here.
+        </p>
+      )}
+      {customers !== null && customers.length > 0 && (
+        <div className="orders-list">
+          {customers.map((customer) => (
+            <div className="order-row" key={customer.id}>
+              <div>
+                <div className="ord-id">{customer.name}</div>
+                <div className="ord-meta">{customer.email}</div>
+              </div>
+              <div>
+                <div className="ord-meta">
+                  Joined{' '}
+                  {new Date(customer.createdAt).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

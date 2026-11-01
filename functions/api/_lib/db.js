@@ -392,6 +392,18 @@ export async function getCustomerById(env, id) {
   return rowToCustomer(row);
 }
 
+/**
+ * All customers, newest first — the admin customer list. Only the
+ * public columns are selected: salt/hash are never read here, so they
+ * can never leak into the response.
+ */
+export async function listCustomers(env) {
+  const { results } = await env.DB.prepare(
+    'SELECT id, name, email, created_at FROM customers ORDER BY id DESC'
+  ).all();
+  return results.map(rowToCustomer);
+}
+
 export async function createCustomer(env, { name, email, password }) {
   const { salt, hash } = await newPasswordRecord(password);
   const createdAt = new Date().toISOString();

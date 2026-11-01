@@ -157,6 +157,15 @@ export async function markAdminOrderSeen(id) {
 }
 
 /**
+ * The registered customers (GET /api/admin/customers):
+ * { customers: [{ id, name, email, createdAt }] }, newest first.
+ * Public fields only — the endpoint never returns credential material.
+ */
+export async function fetchAdminCustomers() {
+  return adminFetch('/api/admin/customers');
+}
+
+/**
  * The product catalog (GET /api/products — the same public list the
  * storefront reads; there is no separate admin list endpoint).
  * Resolves to an array, possibly empty.

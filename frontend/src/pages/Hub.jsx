@@ -26,6 +26,10 @@ const HUB_LINKS = [
 export default function Hub() {
   return (
     <main>
+      <section className="hub-lockup">
+        <div className="lockup-name">BeastMode82420</div>
+        <div className="lockup-num">824</div>
+      </section>
       <section className="hub-hero">
         <img
           src={HERO_ART}

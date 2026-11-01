@@ -12,7 +12,8 @@ export default function ShopHome() {
       <section className="hero">
         <span className="kicker">Shop 824</span>
         <h1 className="hero-title">
-          SHOP <span className="gold">824</span>
+          <span className="kai">BeastMode82420</span>
+          <span className="gold under">824</span>
         </h1>
         <p className="hero-lede">
           The 824 storefront — real products, real photos, and straight-up

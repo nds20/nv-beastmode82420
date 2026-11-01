@@ -103,6 +103,8 @@ h1.display, .hero-title {
 .hero .kicker { display: block; margin-bottom: 14px; }
 .hero-title { font-size: clamp(64px, 11vw, 128px); }
 .hero-title .gold { color: var(--gold); }
+.hero-title .kai { color: #2fb9ff; text-shadow: 0 0 16px rgba(47,185,255,.55), 0 0 48px rgba(47,185,255,.30); font-size: .6em; letter-spacing: 1px; }
+.hero-title .under { display: block; }
 .hero-lede { color: var(--muted); font-size: 18px; max-width: 620px; margin: 20px 0 30px; }
 .hero-lede strong { color: var(--ink); font-weight: 600; }
 .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -284,6 +286,9 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 }
 
 /* ---------- Hub (brand front page, route "/") ---------- */
+.hub-lockup { text-align: center; padding-top: 34px; font-family: var(--display); line-height: .95; }
+.hub-lockup .lockup-name { color: #2fb9ff; text-shadow: 0 0 16px rgba(47,185,255,.55), 0 0 48px rgba(47,185,255,.30); font-size: clamp(38px, 7.5vw, 72px); letter-spacing: 1px; }
+.hub-lockup .lockup-num { color: var(--gold); font-size: clamp(56px, 10vw, 104px); letter-spacing: 2px; }
 .hub-hero { max-width: 540px; margin: 0 auto; padding-top: 28px; }
 .hub-hero img { width: 100%; height: auto; display: block; }
 .hub-links {

@@ -12,6 +12,8 @@ import Checkout from './pages/Checkout';
 import OrderConfirmation from './pages/OrderConfirmation';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Shop layout — plain pass-through for the /shop routes.
 function ShopLayout() {
@@ -35,6 +37,10 @@ export default function App() {
               <Route path="order-confirmation" element={<OrderConfirmation />} />
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
+              {/* Admin — direct URL only, deliberately not linked
+                  from the header, footer, or any public page. */}
+              <Route path="admin/login" element={<AdminLogin />} />
+              <Route path="admin" element={<AdminDashboard />} />
             </Route>
             <Route path="*" element={<Hub />} />
           </Routes>

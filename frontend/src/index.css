@@ -298,6 +298,24 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 .hub-lockup { text-align: center; padding-top: 40px; }
 .hub-lockup .lockup-img-name { display: block; width: min(660px, 94%); height: auto; margin: 0 auto; }
 .hub-lockup .lockup-img-num { display: block; width: min(400px, 64%); height: auto; margin: 14px auto 0; }
+.hub-lockup .lockup-img-builtby { display: block; width: min(640px, 94%); height: auto; margin: 0 auto; }
+.shop-lockup .lockup-img-builtby { display: block; width: min(520px, 92%); height: auto; margin: 0 auto; }
+/* Yellow experiment (owner trying it out 2026-11-01; one-word revert):
+   the hub gets the glossy Steelers-yellow backdrop from the owner's
+   824 artwork. Header and footer keep their black bars. */
+.hub-page { position: relative; z-index: 0; }
+.hub-page::before {
+  content: ""; position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(rgba(0,0,0,.10) 1.2px, transparent 1.35px) 0 0 / 14px 14px,
+    radial-gradient(rgba(255,255,255,.12) 1px, transparent 1.15px) 7px 7px / 14px 14px,
+    radial-gradient(120% 90% at 50% 0%, #ffd21a 0%, #f7b500 45%, #eda100 75%, #e08f00 100%);
+}
+.hub-page .hub-about p { color: #2b2413; }
+.hub-page .section-title { color: #141414; }
+.hub-page .section-title::after { background: rgba(0,0,0,.30); }
+.hub-page .hub-pill:hover { background: #141414; color: var(--gold); }
+.hub-page .hub-hero img { border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
 .hub-hero { max-width: 660px; margin: 0 auto; padding-top: 34px; }
 .hub-hero img { width: 100%; height: auto; display: block; }
 .hub-links {

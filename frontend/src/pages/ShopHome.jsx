@@ -20,7 +20,7 @@ export default function ShopHome() {
           confirmed, never made up.
         </p>
         <div className="hero-actions">
-          <Link className="btn" to="/shop/products">
+          <Link className="btn btn-kai" to="/shop/products">
             Shop Products
           </Link>
         </div>

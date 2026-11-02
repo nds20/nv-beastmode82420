@@ -88,7 +88,7 @@ export default function OrderConfirmation() {
           </p>
         )}
         <p style={{ marginTop: 26 }}>
-          <Link className="btn" to="/shop/products">
+          <Link className="btn btn-kai" to="/shop/products">
             Continue Shopping
           </Link>
         </p>

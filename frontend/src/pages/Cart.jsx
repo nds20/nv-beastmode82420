@@ -23,7 +23,7 @@ export default function Cart() {
       {items.length === 0 ? (
         <div>
           <p className="empty-msg">Your cart is empty</p>
-          <Link className="btn" to="/shop/products">
+          <Link className="btn btn-kai" to="/shop/products">
             Continue Shopping
           </Link>
         </div>

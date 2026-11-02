@@ -124,7 +124,7 @@ export default function Checkout() {
           <h1 className="page-title">Checkout</h1>
         </div>
         <p className="empty-msg">Your cart is empty</p>
-        <Link className="btn" to="/shop/products">
+        <Link className="btn btn-kai" to="/shop/products">
           Continue Shopping
         </Link>
       </main>

@@ -97,6 +97,9 @@ h1.display, .hero-title {
 .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
 .btn-green { background: var(--gold); color: #141414; border: 1px solid var(--gold); width: 100%; }
 .btn[disabled], .btn-green[disabled] { opacity: .45; cursor: not-allowed; }
+/* Kai blue button (owner direction): black fill, Kai border + text. */
+.btn-kai { background: rgba(6, 20, 32, .96); border: 2px solid #2ea8ff; color: #46c2ff; }
+.btn-kai:hover { background: #2ea8ff; color: #06121f; }
 .text-link { font-size: 13px; letter-spacing: .4px; }
 
 /* ---------- Hero ---------- */

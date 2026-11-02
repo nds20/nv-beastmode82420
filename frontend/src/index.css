@@ -314,7 +314,11 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 .hub-page .hub-about p { color: #2b2413; }
 .hub-page .section-title { color: #141414; }
 .hub-page .section-title::after { background: rgba(0,0,0,.30); }
-.hub-page .hub-pill:hover { background: #141414; color: var(--gold); }
+.hub-page .hub-pill {
+  border-color: #2ea8ff; color: #46c2ff; background: rgba(6, 20, 32, .94);
+  box-shadow: 0 0 0 1px rgba(46, 168, 255, .28), 0 6px 18px rgba(0, 60, 120, .28);
+}
+.hub-page .hub-pill:hover { background: #2ea8ff; color: #06121f; }
 .hub-page .hub-hero img { border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
 .hub-hero { max-width: 660px; margin: 0 auto; padding-top: 34px; }
 .hub-hero img { width: 100%; height: auto; display: block; }

@@ -9,7 +9,7 @@
 //      The buttons below are real HTML links.
 //   2. The pill link row — real pill buttons centered under the hero,
 //      styled to match the artwork (gold outline, black fill, gold
-//      text). Exactly five, in the owner's order.
+//      text). In the owner's order.
 //   3. About 824 — the owner's company blurb, verbatim, below the
 //      links.
 
@@ -21,6 +21,7 @@ const HUB_LINKS = [
   { label: '824 Shield', href: 'https://github.com/nds20/824-shield' },
   { label: 'Shop 824', href: 'https://github.com/nds20/nv-beastmode82420' },
   { label: 'Unofficial Muse AI for Windows', href: 'https://github.com/nds20/nv-unofficial-MuseAI-windows-app' },
+  { label: '3D Cube Game', href: 'https://muse.ai/s/3d-cube-game-xbxt6xixyxgxwxzxvsxx/2qoD5ps4YhV1YcHPNRi6nfm4bAZTiRccuapyZZ99eaI' },
 ];
 
 export default function Hub() {

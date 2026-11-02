@@ -300,18 +300,19 @@ legend { font-family: var(--display); font-size: 24px; letter-spacing: 1.4px; ma
 .hub-lockup .lockup-img-num { display: block; width: min(400px, 64%); height: auto; margin: 14px auto 0; }
 .hub-lockup .lockup-img-builtby { display: block; width: min(640px, 94%); height: auto; margin: 0 auto; }
 .shop-lockup .lockup-img-builtby { display: block; width: min(520px, 92%); height: auto; margin: 0 auto; }
-/* Kai blue theme (owner direction 2026-11-01): every page sits on the
-   electric Kai-blue backdrop; the header and footer keep their black
-   bars, and the dark panels/cards keep their light text. Bare page
-   text flips to deep navy so it stays readable on the blue. */
+/* Yellow theme (owner's final call 2026-11-01): every page sits on the
+   glossy yellow backdrop from the owner's 824 artwork; the header and
+   footer keep their black bars, the dark panels/cards keep their light
+   text, and the hub links wear Kai blue. Bare page text is deep navy
+   so it stays readable on the yellow. */
 body { position: relative; z-index: 0; color: #10161d; }
 .notice { color: var(--ink); }
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1;
   background:
-    radial-gradient(rgba(255,255,255,.13) 1px, transparent 1.15px) 7px 7px / 14px 14px,
-    radial-gradient(rgba(6,40,80,.10) 1.2px, transparent 1.35px) 0 0 / 14px 14px,
-    radial-gradient(120% 90% at 50% 0%, #6fd3ff 0%, #35a8ff 45%, #0f7fe0 78%, #0a63c4 100%);
+    radial-gradient(rgba(0,0,0,.10) 1.2px, transparent 1.35px) 0 0 / 14px 14px,
+    radial-gradient(rgba(255,255,255,.12) 1px, transparent 1.15px) 7px 7px / 14px 14px,
+    radial-gradient(120% 90% at 50% 0%, #ffd21a 0%, #f7b500 45%, #eda100 75%, #e08f00 100%);
 }
 .card, .cat-tile, .badge-card, .form-card, .order-row, .cart-line,
 .summary-card, .pd-spec, .order-detail, .chip { color: var(--ink); }
@@ -336,7 +337,7 @@ body::before {
   box-shadow: 0 0 0 1px rgba(46, 168, 255, .28), 0 6px 18px rgba(0, 60, 120, .28);
 }
 .hub-page .hub-pill:hover { background: #2ea8ff; color: #06121f; }
-.hub-hero img { border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+.hub-hero img { filter: drop-shadow(0 18px 30px rgba(0,0,0,.35)); }
 .hub-hero { max-width: 660px; margin: 0 auto; padding-top: 34px; }
 .hub-hero img { width: 100%; height: auto; display: block; }
 .hub-links {

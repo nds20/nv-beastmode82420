@@ -20,6 +20,8 @@ const HUB_LINKS = [
   { label: 'Biometric Screening Research', href: 'https://github.com/nds20/nv-genomic-trial-match' },
   { label: '824 Shield', href: 'https://github.com/nds20/824-shield' },
   { label: 'Shop 824', href: 'https://github.com/nds20/nv-beastmode82420' },
+  { label: 'Friends With Benefits', href: 'https://nv-friends-with-benefits.dp8t78cvgc.workers.dev' },
+  { label: 'Friends With Benefits (GitHub)', href: 'https://github.com/nds20/nv-friends-with-benefits' },
   { label: 'Unofficial Muse AI for Windows', href: 'https://github.com/nds20/nv-unofficial-MuseAI-windows-app' },
   { label: '3D Cube Game', href: 'https://muse.ai/s/3d-cube-game-xbxt6xixyxgxwxzxvsxx/2qoD5ps4YhV1YcHPNRi6nfm4bAZTiRccuapyZZ99eaI' },
 ];

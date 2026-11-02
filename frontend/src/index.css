@@ -416,3 +416,7 @@ textarea.ag-input { letter-spacing: normal; text-align: left; }
   border-radius: 8px; padding: 12px 14px; font-size: 15px; font-family: var(--body); resize: vertical;
 }
 .field textarea:focus { outline: none; border-color: var(--gold); }
+
+/* About text in dark black on the yellow (owner direction 2026-11-01). */
+.hub-page .hub-about p { color: #0b0b0c; }
+.hub-page .hub-about p strong { color: #000; }

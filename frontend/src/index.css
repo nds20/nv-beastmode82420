@@ -358,9 +358,54 @@ body::before {
 .hub-pill:active { transform: translateY(1px); }
 .hub-pill[aria-disabled="true"] { opacity: .75; cursor: default; }
 .hub-pill[aria-disabled="true"]:hover { background: rgba(0, 0, 0, .88); color: var(--gold); }
+/* Featured keystone block (owner direction 2026-11-05): Friends With
+   Benefits spotlit in a black feature card between the hero and the
+   pill row. The black panel echoes the header/footer bars, the gold
+   frame carries the 824 branding, and the Kai-blue ring + hover echo
+   the hub's pill system. */
+.hub-feature { max-width: 880px; margin: 38px auto 0; padding: 0 22px; }
+.hub-feature-card {
+  background: linear-gradient(180deg, #141416, #070708);
+  border: 1px solid var(--gold-dim); border-top: 4px solid var(--gold);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, .4);
+  color: var(--ink); text-align: center;
+  padding: 40px 32px 36px;
+}
+.hub-feature-eyebrow {
+  color: var(--gold); font-size: 12px; font-weight: 700;
+  letter-spacing: 4px; text-transform: uppercase;
+}
+.hub-feature-name {
+  font-family: var(--display); font-weight: 400; line-height: 1;
+  font-size: clamp(44px, 8.5vw, 68px); letter-spacing: 2px;
+  color: var(--ink); margin: 14px 0 12px;
+}
+.hub-feature-pitch { font-size: 19px; line-height: 1.5; color: #e9e5da; max-width: 560px; margin: 0 auto; }
+.hub-feature-cta {
+  display: inline-block; margin-top: 26px;
+  background: var(--gold); color: #141414; border: 2px solid var(--gold);
+  border-radius: 999px; padding: 16px 40px;
+  font-size: 17px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  box-shadow: 0 0 0 1px rgba(46, 168, 255, .35), 0 10px 26px rgba(0, 0, 0, .45);
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .06s ease;
+}
+.hub-feature-cta:hover { background: #2ea8ff; border-color: #2ea8ff; color: #06121f; }
+.hub-feature-cta:active { transform: translateY(1px); }
+.hub-feature-meta { margin-top: 20px; font-size: 13.5px; letter-spacing: .4px; color: var(--muted); }
+@media (max-width: 640px) {
+  .hub-feature { margin-top: 30px; }
+  .hub-feature-card { padding: 32px 20px 30px; }
+  .hub-feature-pitch { font-size: 17px; }
+  .hub-feature-cta { display: block; width: 100%; padding: 17px 20px; font-size: 16px; }
+}
 .hub-about { max-width: 780px; margin: 0 auto; padding: 26px 22px 6px; }
 .hub-about p { color: var(--muted); font-size: 16.5px; margin-bottom: 16px; }
 .hub-about p strong { color: var(--ink); }
+/* About links sit on the yellow page backdrop, so they take the deep
+   navy treatment used by the site's other on-yellow links. */
+.hub-about a { color: #07304d; font-weight: 600; text-decoration: underline; }
+.hub-about a:hover { color: #041c30; }
 
 /* ---------- Shop extras (React app) ---------- */
 .chip-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 22px; }

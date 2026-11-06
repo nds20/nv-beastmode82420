@@ -399,6 +399,30 @@ body::before {
   .hub-feature-pitch { font-size: 17px; }
   .hub-feature-cta { display: block; width: 100%; padding: 17px 20px; font-size: 16px; }
 }
+.hub-concept { max-width: 880px; margin: 34px auto 0; padding: 0 22px; }
+.hub-concept-card {
+  background: linear-gradient(180deg, #141416, #070708);
+  border: 1px solid var(--gold-dim); border-top: 4px solid var(--gold);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, .4);
+  color: var(--ink); text-align: center;
+  padding: 40px 32px 36px;
+}
+.hub-concept-name {
+  font-family: var(--display); font-weight: 400; line-height: 1;
+  font-size: clamp(40px, 8vw, 62px); letter-spacing: 2px;
+  color: var(--ink); margin: 14px 0 12px;
+}
+.hub-concept-pitch { font-size: 18px; line-height: 1.5; color: #e9e5da; max-width: 560px; margin: 0 auto 26px; }
+.hub-concept-img {
+  display: block; width: 100%; height: auto;
+  border-radius: 10px; border: 1px solid rgba(238, 201, 94, .35);
+  margin-top: 18px;
+}
+@media (max-width: 640px) {
+  .hub-concept-card { padding: 32px 16px 28px; }
+  .hub-concept-pitch { font-size: 16px; }
+}
 .hub-about { max-width: 780px; margin: 0 auto; padding: 26px 22px 6px; }
 .hub-about p { color: var(--muted); font-size: 16.5px; margin-bottom: 16px; }
 .hub-about p strong { color: var(--ink); }

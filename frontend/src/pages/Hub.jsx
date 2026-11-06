@@ -124,9 +124,44 @@ export default function Hub() {
           becomes our top product on beastmode82420.com.
         </p>
         <p>
+          And because 824 thinks in machines as well as software: the Queen Victoria,
+          our 824 Beastmode Concept prototype — a gloss-black widebody sedan on gold
+          wheels, scissor doors up front, and a Kai-blue-stitched cockpit. Her
+          showcase is below.
+        </p>
+        <p>
           No vaporware. No hype decks. Just applied intelligence — built bold, shipped
           for real.
         </p>
+      </section>
+
+      <section className="hub-concept" aria-labelledby="queen-victoria">
+        <div className="hub-concept-card">
+          <p className="hub-feature-eyebrow">The 824 Beastmode Concept</p>
+          <h2 className="hub-concept-name" id="queen-victoria">
+            Queen Victoria
+          </h2>
+          <p className="hub-concept-pitch">
+            Our concept prototype — gloss black, gold wheels, scissor doors, and
+            Kai blue running through the cockpit like a current.
+          </p>
+          <img
+            className="hub-concept-img"
+            src="/images/queen-victoria-exterior.svg"
+            alt="824 Beastmode Concept — the Queen Victoria prototype exterior: gloss-black widebody sedan with gold wheels and scissor doors open, front and rear views"
+            width="1206"
+            height="679"
+            loading="lazy"
+          />
+          <img
+            className="hub-concept-img"
+            src="/images/queen-victoria-interior.svg"
+            alt="Inside Beastmode — the Queen Victoria cockpit with 824 touchscreen and Kai-blue ambient lighting, rear seats, and trunk with 824 bags and lacrosse sticks"
+            width="1206"
+            height="679"
+            loading="lazy"
+          />
+        </div>
       </section>
     </main>
   );

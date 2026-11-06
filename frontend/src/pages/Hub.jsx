@@ -20,6 +20,8 @@ const HERO_ART = '/images/logo-hero.svg';
 
 const FWB_APP_URL = 'https://nv-friends-with-benefits.dp8t78cvgc.workers.dev';
 
+const BANK_APP_URL = 'https://nv-824-bank.dp8t78cvgc.workers.dev';
+
 const HUB_LINKS = [
   { label: 'LinkedIn', href: 'https://www.LinkedIn.com/in/beastmode82420' },
   { label: 'Biometric Screening Research', href: 'https://github.com/nds20/nv-genomic-trial-match' },
@@ -110,6 +112,16 @@ export default function Hub() {
           gates on every call; Shop 824, the 824 merchandise storefront; and the
           unofficial Muse AI app for Windows, because if the tool is good, it should
           run where you work.
+        </p>
+        <p>
+          And watch this space:{' '}
+          <a href={BANK_APP_URL} target="_blank" rel="noreferrer">
+            824 Bank&trade;
+          </a>{' '}
+          — banking that knows your name, inspired by an idea from Nicholas&apos;s
+          father — is live today in demo mode, with simulated balances while we
+          build toward a licensed banking partner. When it fully launches, 824 Bank
+          becomes our top product on beastmode82420.com.
         </p>
         <p>
           No vaporware. No hype decks. Just applied intelligence — built bold, shipped

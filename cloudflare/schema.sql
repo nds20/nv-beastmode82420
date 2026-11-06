@@ -91,3 +91,19 @@ CREATE TABLE IF NOT EXISTS app_settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Donations (owner direction 2026-11-06): one row per completed
+-- Stripe donation to an 824 project, written by the Stripe webhook
+-- (metadata.kind = 'donation') and read back ONLY as an aggregate by
+-- GET /api/donate/stats. Amounts are integer cents. The session id is
+-- UNIQUE so webhook redeliveries record a gift once. The table is
+-- also created lazily at runtime (functions/api/_lib/donations.js),
+-- so existing databases gain it with no migration step.
+CREATE TABLE IF NOT EXISTS donations (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  stripe_session_id TEXT UNIQUE,
+  amount_cents      INTEGER NOT NULL,
+  project           TEXT NOT NULL,
+  donor_email       TEXT,
+  created_at        TEXT NOT NULL
+);

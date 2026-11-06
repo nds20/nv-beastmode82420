@@ -93,6 +93,66 @@ export async function createCheckoutSession(env, order, origin) {
   return { id: data.id, url: data.url };
 }
 
+/**
+ * Create a Stripe Checkout Session for a one-time donation (owner
+ * direction 2026-11-06). Deliberately separate from the order session
+ * above: a donation has no order row, its amount comes from validated
+ * donor input (integer cents, range-checked in _lib/donations.js), and
+ * the session is tagged metadata[kind]=donation + metadata[project] on
+ * BOTH the session and the payment intent, which is how the webhook
+ * tells a gift from an order without ever touching the order flow.
+ *
+ * `project` is a { slug, name } entry from DONATION_PROJECTS.
+ * Returns { id, url }. Throws HttpError 501 when unconfigured (the
+ * hub's dormant state), 502 on any Stripe failure.
+ */
+export async function createDonationCheckoutSession(env, { amountCents, project, origin }) {
+  const key = env && env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new HttpError(
+      501,
+      'Donations are not open yet — Stripe is still being hooked up. Please check back very soon.'
+    );
+  }
+  const base = env.STRIPE_API_BASE || STRIPE_API_BASE_DEFAULT;
+  const form = new URLSearchParams();
+  form.set('mode', 'payment');
+  form.set('client_reference_id', `donation-${project.slug}`);
+  form.set('success_url', `${origin}/?donated=1`);
+  form.set('cancel_url', `${origin}/?donated=0`);
+  form.set('metadata[kind]', 'donation');
+  form.set('metadata[project]', project.slug);
+  form.set('payment_intent_data[metadata][kind]', 'donation');
+  form.set('payment_intent_data[metadata][project]', project.slug);
+  form.set('line_items[0][quantity]', '1');
+  form.set('line_items[0][price_data][currency]', 'usd');
+  form.set('line_items[0][price_data][unit_amount]', String(amountCents));
+  form.set(
+    'line_items[0][price_data][product_data][name]',
+    `Donation to 824 — ${project.name}`
+  );
+
+  let response;
+  try {
+    response = await fetch(`${base}/v1/checkout/sessions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: form.toString(),
+    });
+  } catch (err) {
+    throw new HttpError(502, `Could not reach Stripe to start the donation (${err.message}).`);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.id || !data.url) {
+    const message = (data.error && data.error.message) || `Stripe returned HTTP ${response.status}`;
+    throw new HttpError(502, `Stripe could not create a donation checkout session: ${message}`);
+  }
+  return { id: data.id, url: data.url };
+}
+
 async function hmacSha256Hex(secret, payload) {
   const key = await crypto.subtle.importKey(
     'raw',

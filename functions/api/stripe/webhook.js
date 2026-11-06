@@ -12,9 +12,13 @@
 //                                        'unpaid' (the buyer can retry);
 //                                        a paid order is never downgraded
 //   checkout.session.async_payment_failed -> 'payment_failed'
-// Anything else is acknowledged (200) and ignored, so Stripe does not
-// retry events we do not use. Handling is idempotent: Stripe retries
-// deliveries, and re-applying an event leaves the order in the same
+// Donation sessions (metadata.kind === 'donation', created by
+// /api/donate/checkout) are recorded into the `donations` table on
+// checkout.session.completed and never enter the order flow below —
+// the two kinds share this endpoint but nothing else. Anything else
+// is acknowledged (200) and ignored, so Stripe does not retry events
+// we do not use. Handling is idempotent: Stripe retries deliveries,
+// and re-applying an event leaves the order (or donation) in the same
 // state. Orders are matched by their stored Checkout Session id, with
 // the session metadata's order_id as a fallback.
 
@@ -24,6 +28,7 @@ import {
   updateOrderPayment,
   findOrderByStripeSessionId,
 } from '../_lib/db.js';
+import { recordDonation } from '../_lib/donations.js';
 import { stripeWebhookConfigured, verifyWebhookSignature } from '../_lib/stripe.js';
 
 async function orderForSession(env, session) {
@@ -48,6 +53,12 @@ export const onRequestPost = handle(async ({ request, env }) => {
   const session = (event.data && event.data.object) || {};
 
   if (event.type === 'checkout.session.completed') {
+    // A donation session is recorded and done — it has no order, and
+    // the order lookups below must never see it.
+    if (session.metadata && session.metadata.kind === 'donation') {
+      await recordDonation(env, session);
+      return json({ received: true });
+    }
     const order = await orderForSession(env, session);
     if (order && order.paymentStatus !== 'paid') {
       await updateOrderPayment(env, order.id, {

@@ -18,6 +18,7 @@
 //   POST   /api/orders/:id/checkout                             (order token)
 //   GET    /api/orders/:id/status                               (order token)
 //   GET    /api/payments/config
+//   POST   /api/donate/checkout         GET /api/donate/stats
 //   POST   /api/stripe/webhook                                  (Stripe-signed)
 //   POST   /api/customers/register
 //   POST   /api/customers/login
@@ -51,6 +52,8 @@ import { onRequestPost as orderCreate } from '../functions/api/orders.js';
 import { onRequestPost as orderCheckout } from '../functions/api/orders/[id]/checkout.js';
 import { onRequestGet as orderStatus } from '../functions/api/orders/[id]/status.js';
 import { onRequestGet as paymentsConfig } from '../functions/api/payments/config.js';
+import { onRequestPost as donateCheckout } from '../functions/api/donate/checkout.js';
+import { onRequestGet as donateStats } from '../functions/api/donate/stats.js';
 import { onRequestPost as stripeWebhook } from '../functions/api/stripe/webhook.js';
 import { onRequestPost as customerRegister } from '../functions/api/customers/register.js';
 import { onRequestPost as customerLogin } from '../functions/api/customers/login.js';
@@ -77,6 +80,8 @@ const ROUTES = [
   { parts: ['api', 'orders', ':id', 'checkout'], handlers: { POST: orderCheckout } },
   { parts: ['api', 'orders', ':id', 'status'], handlers: { GET: orderStatus } },
   { parts: ['api', 'payments', 'config'], handlers: { GET: paymentsConfig } },
+  { parts: ['api', 'donate', 'checkout'], handlers: { POST: donateCheckout } },
+  { parts: ['api', 'donate', 'stats'], handlers: { GET: donateStats } },
   { parts: ['api', 'stripe', 'webhook'], handlers: { POST: stripeWebhook } },
   { parts: ['api', 'customers', 'register'], handlers: { POST: customerRegister } },
   { parts: ['api', 'customers', 'login'], handlers: { POST: customerLogin } },

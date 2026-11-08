@@ -32,6 +32,8 @@ const FWB_APP_URL = 'https://nv-friends-with-benefits.dp8t78cvgc.workers.dev';
 
 const BANK_APP_URL = 'https://nv-824-bank.dp8t78cvgc.workers.dev';
 
+const SPORTS_APP_URL = 'https://nv-sports-app.dp8t78cvgc.workers.dev';
+
 const HUB_LINKS = [
   { label: 'LinkedIn', href: 'https://www.LinkedIn.com/in/beastmode82420' },
   { label: 'Biometric Screening Research', href: 'https://github.com/nds20/nv-genomic-trial-match' },
@@ -39,6 +41,9 @@ const HUB_LINKS = [
   { label: 'Shop 824', href: 'https://github.com/nds20/nv-beastmode82420' },
   { label: 'Friends With Benefits', href: FWB_APP_URL },
   { label: 'Friends With Benefits (GitHub)', href: 'https://github.com/nds20/nv-friends-with-benefits' },
+  // Sports App links to the live app (like the Friends With Benefits
+  // pill) and carries the cerulean highlight so it stands out in the row.
+  { label: 'Sports App', href: SPORTS_APP_URL, className: 'hub-pill-sports' },
   { label: 'Unofficial Muse AI for Windows', href: 'https://github.com/nds20/nv-unofficial-MuseAI-windows-app' },
   { label: '3D Cube Game', href: 'https://muse.ai/s/3d-cube-game-xbxt6xixyxgxwxzxvsxx/2qoD5ps4YhV1YcHPNRi6nfm4bAZTiRccuapyZZ99eaI' },
 ];
@@ -316,7 +321,7 @@ export default function Hub() {
         {HUB_LINKS.map((link) => (
           <a
             key={link.label}
-            className="hub-pill"
+            className={link.className ? `hub-pill ${link.className}` : 'hub-pill'}
             href={link.href}
             target="_blank"
             rel="noreferrer"
@@ -362,6 +367,19 @@ export default function Hub() {
           father — is live today in demo mode, with simulated balances while we
           build toward a licensed banking partner. When it fully launches, 824 Bank
           becomes our top product on beastmode82420.com.
+        </p>
+        <p>
+          Newest on the roster:{' '}
+          <a href={SPORTS_APP_URL} target="_blank" rel="noreferrer">
+            Sports App
+          </a>{' '}
+          — the team platform for youth sports: public team pages and a team
+          directory, online player registration, a team calendar, coach and
+          parent messaging, and a paperwork tracker that keeps score of
+          physicals, report cards, and everything else handed in. Every team
+          gets its own logo and colors, all of it run on a five-role model —
+          Site Admin, Coach, Verifier, Parent, and the General Public. Live
+          now, with the Irondequoit Junior Eagles as its first team.
         </p>
         <p>
           And because 824 thinks in machines as well as software: the Queen Victoria,

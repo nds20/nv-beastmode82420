@@ -2,11 +2,13 @@
 //
 // Structure (owner-directed, built to be re-skinned/re-arted without
 // restructuring):
-//   1. Hero artwork — a single <img> (/images/logo-hero.svg), the
-//      Beast Gohan emblem the owner supplied on 2026-11-01 (replacing
-//      the original stadium banner). It sits centered at a constrained
-//      width (.hub-hero); its black surround blends into the page.
-//      The buttons below are real HTML links.
+//   1. Hero artwork — a single <img> (/images/beastmode-logo-emblem.svg),
+//      the owner's Beast-form portrait emblem supplied on 2026-11-07
+//      (replacing the Beast Gohan emblem he supplied on 2026-11-01,
+//      which replaced the original stadium banner; the old asset stays
+//      at /images/logo-hero.svg for revert). It sits centered at a
+//      constrained width (.hub-hero); its black surround blends into
+//      the page. The buttons below are real HTML links.
 //   2. The keystone feature block — Friends With Benefits, the
 //      flagship product, spotlit in a black feature card directly
 //      under the hero (owner direction 2026-11-05).
@@ -24,7 +26,7 @@
 
 import { useEffect, useState } from 'react';
 
-const HERO_ART = '/images/logo-hero.svg';
+const HERO_ART = '/images/beastmode-logo-emblem.svg';
 
 const FWB_APP_URL = 'https://nv-friends-with-benefits.dp8t78cvgc.workers.dev';
 
@@ -280,7 +282,7 @@ export default function Hub() {
       <section className="hub-hero">
         <img
           src={HERO_ART}
-          alt="Beastmode 82420 — Beast Gohan emblem"
+          alt="BeastMode82420 emblem — Nicholas in Beast form"
           width="700"
           height="792"
         />

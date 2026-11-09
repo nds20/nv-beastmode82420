@@ -22,6 +22,20 @@ function parseOptionalNumber(value, field) {
   return num;
 }
 
+// Shipping measurement fields (2026-11-09): all optional — an unset
+// field stays null and _lib/shipping.js applies its documented
+// defaults at quote time. A SET field must be a positive number within
+// the USPS envelope (70 lb max parcel weight = 1120 oz; 108 in max
+// dimension); anything else is a 400, never silently clamped.
+function parseShippingMeasure(value, field, max) {
+  const num = parseOptionalNumber(value, field);
+  if (num === null) return null;
+  if (num <= 0 || num > max) {
+    fail(400, `${field} must be greater than 0 and at most ${max}`);
+  }
+  return num;
+}
+
 function parseEffects(value) {
   if (typeof value === 'string' && value.trim().startsWith('[')) {
     // Multipart forms send the array JSON-encoded (see buildProductBody).
@@ -101,6 +115,10 @@ export function normalizeProduct(body, existing) {
     effects: parseEffects(pick('effects')),
     tile: parseTile(pick('tile')),
     image: pick('image') !== undefined ? pick('image') : (base.image || null),
+    weightOz: parseShippingMeasure(pick('weightOz'), 'weightOz', 1120),
+    lengthIn: parseShippingMeasure(pick('lengthIn'), 'lengthIn', 108),
+    widthIn: parseShippingMeasure(pick('widthIn'), 'widthIn', 108),
+    heightIn: parseShippingMeasure(pick('heightIn'), 'heightIn', 108),
   };
 }
 
@@ -113,12 +131,24 @@ export function normalizeProduct(body, existing) {
  *
  * `getProductById` is the D1 lookup (db.js getProduct) — the only change
  * from the Node version, where the in-memory store lookup was synchronous.
+ *
+ * Shipping (2026-11-09, buyer-paid USPS live rates): the optional third
+ * argument `quoteShippingFn(entries, destZip)` is _lib/shipping.js's
+ * quoteShipping bound to the request env by the route. When it reports
+ * USPS is configured, the order MUST name a `shippingService` from the
+ * body; the price is taken from a fresh server-side re-quote of that
+ * service — any amount the client sends is ignored. When USPS is not
+ * configured (or no quote function is supplied), shipping fields are
+ * ignored and shipping is 0, exactly as before this feature. Tax stays
+ * on the merchandise subtotal only — shipping is never taxed — and the
+ * total is subtotal + tax + shipping.
  */
-export async function normalizeOrder(body, getProductById) {
+export async function normalizeOrder(body, getProductById, quoteShippingFn) {
   const rawItems = Array.isArray(body.items) ? body.items : [];
   if (rawItems.length === 0) fail(400, 'Order must contain at least one item.');
 
   const items = [];
+  const entries = [];
   for (const raw of rawItems) {
     const productId = raw ? (raw.productId !== undefined ? raw.productId : raw.id) : undefined;
     // eslint-disable-next-line no-await-in-loop
@@ -139,6 +169,7 @@ export async function normalizeOrder(body, getProductById) {
       unitPrice,
       lineTotal: round2(unitPrice * qty),
     });
+    entries.push({ product, qty });
   }
 
   const customer = body.customer || body.delivery || {};
@@ -148,6 +179,46 @@ export async function normalizeOrder(body, getProductById) {
 
   const subtotal = round2(items.reduce((sum, i) => sum + i.lineTotal, 0));
   const tax = round2(subtotal * TAX_RATE);
+
+  // ----- Shipping -------------------------------------------------------------
+  // Shipping money is INTEGER CENTS (shippingCents) while subtotal/tax/
+  // total are dollars — the conversion to dollars happens exactly once,
+  // in the total below, and is commented there.
+  let shippingCents = 0;
+  let shippingService = null;
+  let shippingLabel = null;
+  let shippingWeightOz = null;
+  const requestedService =
+    body.shippingService !== undefined && body.shippingService !== null && body.shippingService !== ''
+      ? String(body.shippingService)
+      : null;
+  const destZip = String(customer.zip || '').trim().slice(0, 5);
+  if (requestedService && !/^\d{5}$/.test(destZip)) {
+    fail(400, 'A valid 5-digit ZIP code is required to ship this order.');
+  }
+  if (typeof quoteShippingFn === 'function') {
+    const quote = await quoteShippingFn(entries, destZip);
+    if (quote && quote.configured) {
+      if (!/^\d{5}$/.test(destZip)) {
+        fail(400, 'A valid 5-digit ZIP code is required to ship this order.');
+      }
+      if (!requestedService) {
+        fail(400, 'Please choose a shipping option for this order.');
+      }
+      // Re-quote wins: the stored price is the one USPS (or the flat
+      // fallback) returned for this service just now, never a
+      // client-supplied amount. 'standard' is only present in the
+      // options when USPS itself failed and the fallback was offered.
+      const chosen = (quote.options || []).find((o) => o.service === requestedService);
+      if (!chosen) {
+        fail(400, `Shipping option "${requestedService}" is not available for this order.`);
+      }
+      shippingCents = Math.round(Number(chosen.priceCents)) || 0;
+      shippingService = chosen.service;
+      shippingLabel = chosen.label || null;
+      shippingWeightOz = quote.weightOz != null ? Number(quote.weightOz) : null;
+    }
+  }
 
   let payment = null;
   const cardDigits = body.payment && body.payment.cardNumber
@@ -159,7 +230,12 @@ export async function normalizeOrder(body, getProductById) {
     items,
     subtotal,
     tax,
-    total: round2(subtotal + tax),
+    // shippingCents (cents) -> dollars at this single boundary.
+    total: round2(subtotal + tax + shippingCents / 100),
+    shippingCents,
+    shippingService,
+    shippingLabel,
+    shippingWeightOz,
     customer: {
       fullName: String(customer.fullName).trim(),
       phone: String(customer.phone).trim(),

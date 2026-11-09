@@ -51,6 +51,30 @@ export function getPendingOrders() {
   }
 }
 
+// ----- Shipping quotes -----------------------------------------------------
+// POST /api/shipping/quote prices the cart for the buyer's ZIP using
+// live USPS rates (buyer-paid shipping, 2026-11-09). The response is
+// { configured, options: [{ service, label, priceCents }], weightOz }.
+// When the server has no USPS credentials, configured is false and
+// checkout shows no shipping UI at all — the shop behaves as before.
+// Placing the order sends back only the chosen service id; the server
+// re-quotes and charges its own price, never the one displayed here.
+
+export async function fetchShippingQuote(items, zip) {
+  const response = await fetch('/api/shipping/quote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items, zip }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(data.error || `Shipping quote failed (${response.status})`);
+    err.status = response.status;
+    throw err;
+  }
+  return data;
+}
+
 // ----- Stripe payments -------------------------------------------------------
 // When the server has a Stripe key configured, placing an order is
 // followed by a hosted Stripe Checkout redirect; the order's accessToken

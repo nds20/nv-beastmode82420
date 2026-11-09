@@ -391,6 +391,12 @@ function OrderDetail({ order }) {
           <span>Tax</span>
           <span>{money(order.tax)}</span>
         </div>
+        {Number(order.shippingCents) > 0 && (
+          <div className="sum-row">
+            <span>Shipping: {order.shippingLabel || order.shippingService || 'Shipping'}</span>
+            <span>{money(order.shippingCents / 100)}</span>
+          </div>
+        )}
         <div className="sum-row total">
           <span>Total</span>
           <span>{money(order.total)}</span>
@@ -416,6 +422,13 @@ function OrderDetail({ order }) {
               : ''}
           </p>
           <p>Payment status: {order.paymentStatus || 'unpaid'}</p>
+          {Number(order.shippingCents) > 0 && (
+            <p>
+              Shipping: {order.shippingLabel || order.shippingService} —{' '}
+              {money(order.shippingCents / 100)}
+              {order.shippingWeightOz != null ? ` · ${order.shippingWeightOz} oz` : ''}
+            </p>
+          )}
           {order.payment && (
             <p>
               {order.payment.method} ending in {order.payment.last4}

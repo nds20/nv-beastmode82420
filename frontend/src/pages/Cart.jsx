@@ -97,6 +97,7 @@ export default function Cart() {
               <span>Total</span>
               <span>{money(totals.total)}</span>
             </div>
+            <p className="sum-note">Shipping calculated at checkout by USPS.</p>
             {totals.hasTbd && (
               <>
                 <p className="sum-note">

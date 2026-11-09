@@ -15,6 +15,7 @@
 //   GET    /api/products/:id             PUT  /api/products/:id       (admin)
 //                                        DELETE /api/products/:id     (admin)
 //   POST   /api/orders
+//   POST   /api/shipping/quote                                (public)
 //   POST   /api/orders/:id/checkout                             (order token)
 //   GET    /api/orders/:id/status                               (order token)
 //   GET    /api/payments/config
@@ -49,6 +50,7 @@ import {
   onRequestDelete as productDelete,
 } from '../functions/api/products/[id].js';
 import { onRequestPost as orderCreate } from '../functions/api/orders.js';
+import { onRequestPost as shippingQuote } from '../functions/api/shipping/quote.js';
 import { onRequestPost as orderCheckout } from '../functions/api/orders/[id]/checkout.js';
 import { onRequestGet as orderStatus } from '../functions/api/orders/[id]/status.js';
 import { onRequestGet as paymentsConfig } from '../functions/api/payments/config.js';
@@ -77,6 +79,7 @@ const ROUTES = [
     handlers: { GET: productGet, PUT: productUpdate, DELETE: productDelete },
   },
   { parts: ['api', 'orders'], handlers: { POST: orderCreate } },
+  { parts: ['api', 'shipping', 'quote'], handlers: { POST: shippingQuote } },
   { parts: ['api', 'orders', ':id', 'checkout'], handlers: { POST: orderCheckout } },
   { parts: ['api', 'orders', ':id', 'status'], handlers: { GET: orderStatus } },
   { parts: ['api', 'payments', 'config'], handlers: { GET: paymentsConfig } },

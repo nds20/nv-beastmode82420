@@ -25,15 +25,24 @@ export default function OrderConfirmation() {
       const token = params.get('token');
       if (id && token) {
         let total = null;
+        let shipping = {};
         try {
           const raw = sessionStorage.getItem(LAST_ORDER_KEY);
           const last = raw ? JSON.parse(raw) : null;
-          if (last && String(last.id) === String(id)) total = last.total;
+          if (last && String(last.id) === String(id)) {
+            total = last.total;
+            if (Number(last.shippingCents) > 0) {
+              shipping = {
+                shippingLabel: last.shippingLabel || null,
+                shippingCents: last.shippingCents,
+              };
+            }
+          }
         } catch {
           // No backup — the confirmation still shows the order + status.
         }
         window.history.replaceState({}, '', window.location.pathname);
-        return { orderId: `ORD-${id}`, total, accessToken: token, numericId: id };
+        return { orderId: `ORD-${id}`, total, accessToken: token, numericId: id, ...shipping };
       }
     }
     return state;
@@ -80,6 +89,12 @@ export default function OrderConfirmation() {
         {typeof info.total === 'number' && (
           <p>
             Order total: <strong>{money(info.total)}</strong>
+          </p>
+        )}
+        {Number(info.shippingCents) > 0 && (
+          <p>
+            Shipping: <strong>{info.shippingLabel || 'Shipping'}</strong> —{' '}
+            {money(info.shippingCents / 100)} (included in the total)
           </p>
         )}
         {paymentStatus && (

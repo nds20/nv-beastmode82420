@@ -37,7 +37,11 @@ const toCents = (dollars) => Math.round(Number(dollars) * 100);
  * Create a Stripe Checkout Session for a stored order. Line items are
  * built ONLY from the order's server-computed items/totals — the client
  * never names amounts. The stored total is reproduced exactly: item line
- * totals plus one "Sales tax" line for the stored tax amount.
+ * totals plus one "Sales tax" line for the stored tax amount, plus —
+ * when the order carries buyer-paid shipping (2026-11-09) — one
+ * shipping line whose unit_amount is the order's shippingCents
+ * verbatim (that field is already integer cents; the dollar fields go
+ * through toCents).
  *
  * Returns { id, url } — send the customer to `url` to pay.
  */
@@ -64,12 +68,23 @@ export async function createCheckoutSession(env, order, origin) {
     form.set(`line_items[${i}][price_data][unit_amount]`, String(toCents(item.unitPrice)));
     form.set(`line_items[${i}][price_data][product_data][name]`, item.name);
   });
+  let next = order.items.length;
   if (Number(order.tax) > 0) {
-    const i = order.items.length;
-    form.set(`line_items[${i}][quantity]`, '1');
-    form.set(`line_items[${i}][price_data][currency]`, 'usd');
-    form.set(`line_items[${i}][price_data][unit_amount]`, String(toCents(order.tax)));
-    form.set(`line_items[${i}][price_data][product_data][name]`, 'Sales tax');
+    form.set(`line_items[${next}][quantity]`, '1');
+    form.set(`line_items[${next}][price_data][currency]`, 'usd');
+    form.set(`line_items[${next}][price_data][unit_amount]`, String(toCents(order.tax)));
+    form.set(`line_items[${next}][price_data][product_data][name]`, 'Sales tax');
+    next += 1;
+  }
+  if (Number(order.shippingCents) > 0) {
+    form.set(`line_items[${next}][quantity]`, '1');
+    form.set(`line_items[${next}][price_data][currency]`, 'usd');
+    form.set(`line_items[${next}][price_data][unit_amount]`, String(Math.round(Number(order.shippingCents))));
+    form.set(
+      `line_items[${next}][price_data][product_data][name]`,
+      order.shippingLabel || 'Shipping'
+    );
+    next += 1;
   }
 
   let response;

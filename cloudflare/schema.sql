@@ -43,7 +43,13 @@ CREATE TABLE IF NOT EXISTS products (
   unit     TEXT,
   effects  TEXT NOT NULL DEFAULT '[]',
   tile     TEXT NOT NULL DEFAULT '["#374151","#111827"]',
-  image    TEXT
+  image    TEXT,
+  -- Shipping measurements (2026-11-09): admin-set, all NULL-able —
+  -- NULL means unmeasured and _lib/shipping.js uses its defaults.
+  weight_oz REAL,
+  length_in REAL,
+  width_in  REAL,
+  height_in REAL
 );
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -60,7 +66,15 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_status TEXT NOT NULL DEFAULT 'unpaid',
   stripe_session_id TEXT,
   stripe_payment_intent_id TEXT,
-  access_token TEXT
+  access_token TEXT,
+  -- Shipping (2026-11-09): shipping_cents is INTEGER CENTS (the other
+  -- money columns are dollar REALs — the name carries the unit);
+  -- service/label record what the buyer chose; weight is the quoted
+  -- parcel weight in ounces.
+  shipping_cents    INTEGER NOT NULL DEFAULT 0,
+  shipping_service  TEXT,
+  shipping_label    TEXT,
+  shipping_weight_oz REAL
 );
 
 CREATE TABLE IF NOT EXISTS admin_accounts (

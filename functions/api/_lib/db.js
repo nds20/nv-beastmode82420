@@ -7,6 +7,10 @@
 //                   and `tile` are TEXT columns holding JSON strings and
 //                   are parsed back into arrays here, so API responses are
 //                   byte-for-byte the same shape as the Node server's.
+//                   Shipping adds four nullable REAL columns (weight_oz,
+//                   length_in, width_in, height_in) — NULL means the
+//                   admin has not measured the product and _lib/shipping.js
+//                   uses its documented defaults.
 //   orders          one row per order; `items`, `customer` and `payment`
 //                   are TEXT columns holding JSON (payment is NULL or a
 //                   JSON object with only { method, last4 } — full card
@@ -17,7 +21,11 @@
 //                   `stripe_payment_intent_id`, and `access_token` — a
 //                   random per-order secret the buyer's browser holds so
 //                   it can read that one order's status and start its
-//                   checkout without an account.
+//                   checkout without an account. Shipping (2026-11-09)
+//                   adds `shipping_cents` (INTEGER cents — the order's
+//                   other money columns are dollars, so the name carries
+//                   its unit), `shipping_service`, `shipping_label` and
+//                   `shipping_weight_oz`.
 //   admin_accounts  username (case-insensitive PK), salt, hash, created_at
 //                   — passwords only ever as PBKDF2 hashes (see auth.js).
 //   customers       shopper accounts: incrementing id, name, unique
@@ -47,6 +55,61 @@ function parseJsonColumn(value, fallback) {
   }
 }
 
+// ----- Shipping columns (lazy ensure) -----------------------------------------
+//
+// The products/orders tables predate shipping (2026-11-09), and this
+// tree has no migration runner — the stripe columns landed via a
+// hand-run migration-stripe.sql, and donations went further and made
+// its table lazily at runtime. Shipping follows the donations pattern:
+// every product/order read and write first passes through
+// ensureShippingColumns(), which checks PRAGMA table_info and ALTERs
+// in any missing column (cached per isolate; cloudflare/schema.sql
+// carries the columns for fresh installs and
+// cloudflare/migration-shipping.sql documents the same ALTERs for a
+// hand-run migration).
+
+const SHIPPING_COLUMNS = {
+  products: [
+    ['weight_oz', 'REAL'],
+    ['length_in', 'REAL'],
+    ['width_in', 'REAL'],
+    ['height_in', 'REAL'],
+  ],
+  orders: [
+    ['shipping_cents', 'INTEGER NOT NULL DEFAULT 0'],
+    ['shipping_service', 'TEXT'],
+    ['shipping_label', 'TEXT'],
+    ['shipping_weight_oz', 'REAL'],
+  ],
+};
+
+let shippingColumnsPromise = null;
+
+export function ensureShippingColumns(env) {
+  if (!shippingColumnsPromise) {
+    shippingColumnsPromise = (async () => {
+      for (const [table, columns] of Object.entries(SHIPPING_COLUMNS)) {
+        // eslint-disable-next-line no-await-in-loop
+        const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+        const existing = new Set((results || []).map((row) => row.name));
+        for (const [name, type] of columns) {
+          if (!existing.has(name)) {
+            // eslint-disable-next-line no-await-in-loop
+            await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run();
+          }
+        }
+      }
+      return true;
+    })().catch((err) => {
+      // Do not poison the isolate on a transient failure — the next
+      // request retries the check (same rule as donations).
+      shippingColumnsPromise = null;
+      throw err;
+    });
+  }
+  return shippingColumnsPromise;
+}
+
 // ----- Products ---------------------------------------------------------------
 
 export function rowToProduct(row) {
@@ -64,12 +127,22 @@ export function rowToProduct(row) {
     effects: parseJsonColumn(row.effects, []),
     tile: parseJsonColumn(row.tile, ['#374151', '#111827']),
     image: row.image,
+    // Shipping measurements (nullable; NULL = unmeasured, the
+    // shipping defaults in _lib/shipping.js apply).
+    weightOz: row.weight_oz != null ? row.weight_oz : null,
+    lengthIn: row.length_in != null ? row.length_in : null,
+    widthIn: row.width_in != null ? row.width_in : null,
+    heightIn: row.height_in != null ? row.height_in : null,
   };
 }
 
+const PRODUCT_COLUMNS =
+  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in';
+
 export async function listProducts(env) {
+  await ensureShippingColumns(env);
   const { results } = await env.DB.prepare(
-    'SELECT id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image FROM products ORDER BY id ASC'
+    `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY id ASC`
   ).all();
   return results.map(rowToProduct);
 }
@@ -77,8 +150,9 @@ export async function listProducts(env) {
 export async function getProduct(env, id) {
   const pid = Number(id);
   if (!Number.isFinite(pid)) return null;
+  await ensureShippingColumns(env);
   const row = await env.DB.prepare(
-    'SELECT id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image FROM products WHERE id = ?'
+    `SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`
   )
     .bind(pid)
     .first();
@@ -98,13 +172,18 @@ function productParams(data) {
     JSON.stringify(data.effects),
     JSON.stringify(data.tile),
     data.image,
+    data.weightOz != null ? data.weightOz : null,
+    data.lengthIn != null ? data.lengthIn : null,
+    data.widthIn != null ? data.widthIn : null,
+    data.heightIn != null ? data.heightIn : null,
   ];
 }
 
 export async function createProduct(env, data) {
+  await ensureShippingColumns(env);
   const result = await env.DB.prepare(
-    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(...productParams(data))
     .run();
@@ -114,10 +193,12 @@ export async function createProduct(env, data) {
 export async function updateProduct(env, id, data) {
   const pid = Number(id);
   if (!Number.isFinite(pid)) return null;
+  await ensureShippingColumns(env);
   await env.DB.prepare(
     `UPDATE products
      SET name = ?, subtitle = ?, category = ?, type = ?, thc = ?, strength = ?,
-         price = ?, unit = ?, effects = ?, tile = ?, image = ?
+         price = ?, unit = ?, effects = ?, tile = ?, image = ?,
+         weight_oz = ?, length_in = ?, width_in = ?, height_in = ?
      WHERE id = ?`
   )
     .bind(...productParams(data), pid)
@@ -165,14 +246,25 @@ export function rowToOrder(row) {
     stripeSessionId: row.stripe_session_id || null,
     stripePaymentIntentId: row.stripe_payment_intent_id || null,
     accessToken: row.access_token || null,
+    // Shipping (migration-shipping.sql + lazy ensure above).
+    // shipping_cents is INTEGER CENTS in the database — unlike the
+    // dollar REALs above — and the API keeps that unit: shippingCents.
+    // It is converted to dollars only where it joins the dollar total
+    // (validate.js) and back to cents for Stripe (stripe.js reads the
+    // field directly). Orders from before shipping read as 0/null.
+    shippingCents: row.shipping_cents != null ? Number(row.shipping_cents) : 0,
+    shippingService: row.shipping_service || null,
+    shippingLabel: row.shipping_label || null,
+    shippingWeightOz: row.shipping_weight_oz != null ? Number(row.shipping_weight_oz) : null,
   };
 }
 
 const ORDER_COLUMNS =
-  'id, items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token';
+  'id, items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token, shipping_cents, shipping_service, shipping_label, shipping_weight_oz';
 
 /** All orders, newest first — same as the Node orders store. */
 export async function listOrders(env) {
+  await ensureShippingColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${ORDER_COLUMNS} FROM orders ORDER BY id DESC`
   ).all();
@@ -182,6 +274,7 @@ export async function listOrders(env) {
 export async function getOrder(env, id) {
   const oid = Number(id);
   if (!Number.isFinite(oid)) return null;
+  await ensureShippingColumns(env);
   const row = await env.DB.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE id = ?`)
     .bind(oid)
     .first();
@@ -195,9 +288,10 @@ export function newOrderAccessToken() {
 }
 
 export async function createOrder(env, data) {
+  await ensureShippingColumns(env);
   const result = await env.DB.prepare(
-    `INSERT INTO orders (items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token)
-     VALUES (?, ?, ?, ?, ?, ?, 'new', ?, NULL, 'unpaid', NULL, NULL, ?)`
+    `INSERT INTO orders (items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token, shipping_cents, shipping_service, shipping_label, shipping_weight_oz)
+     VALUES (?, ?, ?, ?, ?, ?, 'new', ?, NULL, 'unpaid', NULL, NULL, ?, ?, ?, ?, ?)`
   )
     .bind(
       JSON.stringify(data.items),
@@ -207,7 +301,12 @@ export async function createOrder(env, data) {
       JSON.stringify(data.customer),
       data.payment ? JSON.stringify(data.payment) : null,
       new Date().toISOString(),
-      newOrderAccessToken()
+      newOrderAccessToken(),
+      // Shipping money is integer cents end-to-end (see rowToOrder).
+      data.shippingCents != null ? Math.round(Number(data.shippingCents)) || 0 : 0,
+      data.shippingService || null,
+      data.shippingLabel || null,
+      data.shippingWeightOz != null ? Number(data.shippingWeightOz) : null
     )
     .run();
   return getOrder(env, result.meta.last_row_id);
@@ -246,6 +345,7 @@ export async function updateOrderPayment(env, id, patch) {
 /** Find the order a Stripe Checkout Session belongs to (webhook lookup). */
 export async function findOrderByStripeSessionId(env, sessionId) {
   if (!sessionId) return null;
+  await ensureShippingColumns(env);
   const row = await env.DB.prepare(
     `SELECT ${ORDER_COLUMNS} FROM orders WHERE stripe_session_id = ?`
   )
@@ -284,6 +384,7 @@ export async function markOrderSeen(env, id) {
 export async function listOrdersForCustomer(env, customerId) {
   const cid = Number(customerId);
   if (!Number.isFinite(cid)) return [];
+  await ensureShippingColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${ORDER_COLUMNS} FROM orders
      WHERE json_extract(customer, '$.accountId') = ?

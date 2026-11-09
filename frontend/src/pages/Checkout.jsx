@@ -8,6 +8,7 @@ import {
   queuePendingOrder,
   fetchPaymentsConfig,
   createCheckoutSession,
+  fetchShippingQuote,
 } from '../services/ordersApi';
 
 // Checkout — route "/shop/checkout". Flow ported from the live shop:
@@ -17,6 +18,13 @@ import {
 // as "pending", exactly as before. When the server reports Stripe is
 // configured, the card form is replaced by a redirect notice and the
 // just-placed order continues to Stripe's hosted checkout.
+//
+// Shipping (2026-11-09): once the ZIP is a valid 5 digits, the cart is
+// quoted against live USPS rates (POST /api/shipping/quote) and the
+// buyer picks a service; the chosen service id — never a price — is
+// what the order submits, and the server re-quotes it. When the quote
+// says USPS is not configured, no shipping UI appears and checkout is
+// exactly the page it was before shipping existed.
 const digits = (s) => String(s || '').replace(/\D/g, '');
 const formatPhone = (v) => {
   const d = digits(v).slice(0, 10);
@@ -94,6 +102,15 @@ export default function Checkout() {
   const [touched, setTouched] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  // Shipping quote state: shipQuote is the last successful quote
+  // ({ configured, options }); shipConfigured latches true once any
+  // quote says the server charges shipping, so a later failed reload
+  // still blocks ordering instead of silently dropping the charge.
+  const [shipQuote, setShipQuote] = useState(null);
+  const [shipService, setShipService] = useState(null);
+  const [shipConfigured, setShipConfigured] = useState(false);
+  const [shipLoading, setShipLoading] = useState(false);
+  const [shipError, setShipError] = useState('');
 
   // Signed-in customers get their name prefilled from their account.
   useEffect(() => {
@@ -116,6 +133,54 @@ export default function Checkout() {
       cancelled = true;
     };
   }, []);
+
+  // Shipping rates: debounced quote whenever the ZIP becomes a valid
+  // 5 digits (or the cart changes under a valid ZIP). USPS allows only
+  // ~60 rate calls/hour, so this fires per checkout interaction, not
+  // per keystroke.
+  const cartSignature = items.map((i) => `${i.id}x${i.qty}`).join(',');
+  useEffect(() => {
+    if (!/^\d{5}$/.test(form.zip) || items.length === 0) return undefined;
+    let cancelled = false;
+    setShipLoading(true);
+    const timer = window.setTimeout(() => {
+      fetchShippingQuote(
+        items.map((i) => ({ productId: i.id, qty: i.qty })),
+        form.zip
+      )
+        .then((quote) => {
+          if (cancelled) return;
+          setShipQuote(quote);
+          setShipError('');
+          if (quote && quote.configured) {
+            setShipConfigured(true);
+            const options = Array.isArray(quote.options) ? quote.options : [];
+            setShipService((prev) =>
+              options.some((o) => o.service === prev)
+                ? prev
+                : options.length > 0
+                  ? options[0].service
+                  : null
+            );
+          } else {
+            setShipService(null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setShipError('Could not load shipping options — please check your ZIP.');
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setShipLoading(false);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.zip, cartSignature]);
 
   if (items.length === 0) {
     return (
@@ -155,6 +220,24 @@ export default function Checkout() {
     : ['fullName', 'phone', 'address', 'city', 'zip', 'cardNumber', 'expiry', 'cvv'];
   const errors = Object.fromEntries(fields.map((f) => [f, VALIDATORS[f](form[f])]));
   const showErr = (f) => (touched[f] ? errors[f] : '');
+
+  // Shipping selection: only meaningful when a quote said the server
+  // charges shipping. The display total adds the selected option's
+  // price (cents -> dollars) to the cart totals; the authoritative
+  // total is the one the server returns on the saved order.
+  const shipOptions =
+    shipQuote && shipQuote.configured && Array.isArray(shipQuote.options)
+      ? shipQuote.options
+      : [];
+  const selectedShipOption =
+    shipOptions.find((o) => o.service === shipService) || null;
+  const shippingDollars = selectedShipOption ? selectedShipOption.priceCents / 100 : 0;
+  const displayTotal =
+    Math.round((totals.total + shippingDollars) * 100) / 100;
+  // Ordering is blocked when the server is known to charge shipping
+  // but no option could be loaded/selected (e.g. the quote failed
+  // after an earlier quote proved shipping is configured).
+  const shippingBlocked = shipConfigured && !selectedShipOption;
   const bind = (name, format) => ({
     value: form[name],
     onChange: (e) => {
@@ -172,6 +255,12 @@ export default function Checkout() {
       document.getElementById(firstBad)?.focus();
       return;
     }
+    if (shippingBlocked) {
+      setSubmitError(
+        shipError || 'Please choose a shipping option before placing your order.'
+      );
+      return;
+    }
     setSubmitting(true);
     const orderPayload = {
       items: items.map((i) => ({ productId: i.id, qty: i.qty })),
@@ -183,6 +272,9 @@ export default function Checkout() {
         zip: form.zip,
         notes: form.notes.trim(),
       },
+      // Only the chosen service id rides along — the server re-quotes
+      // it and charges its own price (see _lib/validate.js).
+      ...(selectedShipOption ? { shippingService: selectedShipOption.service } : {}),
       payment: stripeEnabled ? null : { cardNumber: digits(form.cardNumber) },
     };
     try {
@@ -193,8 +285,12 @@ export default function Checkout() {
         queuePendingOrder(orderPayload);
       }
       const orderId = saved && saved.id != null ? `ORD-${saved.id}` : `ORD-${Date.now()}`;
-      const total = saved && typeof saved.total === 'number' ? saved.total : totals.total;
+      const total = saved && typeof saved.total === 'number' ? saved.total : displayTotal;
       const accessToken = saved && saved.accessToken ? saved.accessToken : null;
+      const savedShipping =
+        saved && Number(saved.shippingCents) > 0
+          ? { shippingLabel: saved.shippingLabel || null, shippingCents: saved.shippingCents }
+          : {};
       clearCart();
 
       // Stripe: pay on Stripe's hosted page; the order id + access
@@ -205,7 +301,7 @@ export default function Checkout() {
         try {
           sessionStorage.setItem(
             LAST_ORDER_KEY,
-            JSON.stringify({ id: saved.id, accessToken, total })
+            JSON.stringify({ id: saved.id, accessToken, total, ...savedShipping })
           );
           const session = await createCheckoutSession(saved.id, accessToken);
           if (session && session.url) {
@@ -217,7 +313,13 @@ export default function Checkout() {
         }
       }
       navigate('/shop/order-confirmation', {
-        state: { orderId, total, accessToken, paymentStatus: saved ? saved.paymentStatus : null },
+        state: {
+          orderId,
+          total,
+          accessToken,
+          paymentStatus: saved ? saved.paymentStatus : null,
+          ...savedShipping,
+        },
       });
     } finally {
       setSubmitting(false);
@@ -265,6 +367,35 @@ export default function Checkout() {
               <textarea id="notes" rows="2" {...bind('notes')} />
             </div>
           </fieldset>
+
+          {/^\d{5}$/.test(form.zip) && (shipConfigured || shipError) && (
+            <fieldset>
+              <legend>Shipping</legend>
+              {shipLoading && <p className="sum-note">Getting shipping rates…</p>}
+              {shipOptions.map((option) => (
+                <div className="field" key={option.service}>
+                  <label>
+                    <input
+                      type="radio"
+                      name="shippingService"
+                      value={option.service}
+                      checked={shipService === option.service}
+                      onChange={() => setShipService(option.service)}
+                    />{' '}
+                    {option.label} — {money(option.priceCents / 100)}
+                  </label>
+                </div>
+              ))}
+              {shipError && (
+                <p className="form-error" role="alert">
+                  {shipError}
+                </p>
+              )}
+              {!shipLoading && !shipError && shipOptions.length === 0 && (
+                <p className="sum-note">Loading shipping options…</p>
+              )}
+            </fieldset>
+          )}
 
           <fieldset>
             <legend>Payment</legend>
@@ -353,9 +484,15 @@ export default function Checkout() {
             <span>Taxes (10.2%)</span>
             <span>{money(totals.taxes)}</span>
           </div>
+          {selectedShipOption && (
+            <div className="sum-row">
+              <span>{selectedShipOption.label}</span>
+              <span>{money(shippingDollars)}</span>
+            </div>
+          )}
           <div className="sum-row total">
             <span>Total</span>
-            <span>{money(totals.total)}</span>
+            <span>{money(displayTotal)}</span>
           </div>
         </aside>
       </form>

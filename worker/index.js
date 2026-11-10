@@ -18,6 +18,7 @@
 //   POST   /api/shipping/quote                                (public)
 //   POST   /api/orders/:id/checkout                             (order token)
 //   GET    /api/orders/:id/status                               (order token)
+//   GET    /api/orders/signal                    (public: latest paid order)
 //   GET    /api/payments/config
 //   POST   /api/donate/checkout         GET /api/donate/stats
 //   POST   /api/stripe/webhook                                  (Stripe-signed)
@@ -58,6 +59,7 @@ import { onRequestPost as orderCreate } from '../functions/api/orders.js';
 import { onRequestPost as shippingQuote } from '../functions/api/shipping/quote.js';
 import { onRequestPost as orderCheckout } from '../functions/api/orders/[id]/checkout.js';
 import { onRequestGet as orderStatus } from '../functions/api/orders/[id]/status.js';
+import { onRequestGet as orderSignal } from '../functions/api/orders/signal.js';
 import { onRequestGet as paymentsConfig } from '../functions/api/payments/config.js';
 import { onRequestPost as donateCheckout } from '../functions/api/donate/checkout.js';
 import { onRequestGet as donateStats } from '../functions/api/donate/stats.js';
@@ -95,6 +97,10 @@ const ROUTES = [
   { parts: ['api', 'shipping', 'quote'], handlers: { POST: shippingQuote } },
   { parts: ['api', 'orders', ':id', 'checkout'], handlers: { POST: orderCheckout } },
   { parts: ['api', 'orders', ':id', 'status'], handlers: { GET: orderStatus } },
+  // The literal 'signal' route must precede nothing in particular —
+  // it is a 3-segment path (orders/:id/* routes are 4) — listed here
+  // beside the other orders routes for readability.
+  { parts: ['api', 'orders', 'signal'], handlers: { GET: orderSignal } },
   { parts: ['api', 'payments', 'config'], handlers: { GET: paymentsConfig } },
   { parts: ['api', 'donate', 'checkout'], handlers: { POST: donateCheckout } },
   { parts: ['api', 'donate', 'stats'], handlers: { GET: donateStats } },

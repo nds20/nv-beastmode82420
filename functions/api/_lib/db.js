@@ -653,6 +653,37 @@ export async function countNewOrders(env) {
   return row ? row.n : 0;
 }
 
+/**
+ * The newest PAID order, for the public sale signal
+ * (GET /api/orders/signal — see docs/ORDER_ALERTS.md): the highest
+ * order id whose payment_status is 'paid' (the state the Stripe
+ * webhook stamps on checkout.session.completed), plus that order's
+ * created_at as the "paid-at" reading. Paid-only is deliberate:
+ * unpaid and 'pending' orders are abandoned or in-flight checkouts,
+ * and a watch that fired on them would false-alarm constantly.
+ *
+ * Returns { latestPaidOrderId, latestPaidAt } — both null when no
+ * order has ever been paid. The timestamp is created_at, NOT a
+ * separate paid-at stamp: orders carry no paid_at column, and for a
+ * sale watch the order's own creation time is the moment that
+ * matters (checkout completes seconds after placement). Only the id
+ * and that timestamp leave this function — no customer data, no
+ * totals, no items — because the signal endpoint is unauthenticated
+ * (see the privacy note in docs/ORDER_ALERTS.md).
+ */
+export async function getLatestPaidOrder(env) {
+  await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
+  const row = await env.DB.prepare(
+    "SELECT id, created_at FROM orders WHERE payment_status = 'paid' ORDER BY id DESC LIMIT 1"
+  ).first();
+  if (!row) return { latestPaidOrderId: null, latestPaidAt: null };
+  return {
+    latestPaidOrderId: Number(row.id),
+    latestPaidAt: row.created_at || null,
+  };
+}
+
 // ----- Admin accounts -----------------------------------------------------------
 
 export async function hasAccounts(env) {

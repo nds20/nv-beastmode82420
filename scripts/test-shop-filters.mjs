@@ -86,6 +86,14 @@ const CATALOG = [
   check('(b) category filter is exact',
     ids(applyShopFilters(CATALOG, { category: 'hoodies' })) === '1,7,8');
 
+  check('(b) jeans filter matches only jeans (owner addition 2026-11-10)',
+    ids(applyShopFilters([
+      { id: 21, name: 'Slim Jeans', subtitle: '', category: 'jeans', brand: '824', price: 45 },
+      { id: 22, name: 'Denim-look Tee', subtitle: '', category: 'shirts', brand: '824', price: 25 },
+    ], { category: 'jeans' })) === '21');
+  check('(b) jeans filter over a jeans-free catalog returns nothing',
+    applyShopFilters(CATALOG, { category: 'jeans' }).length === 0);
+
   const maker824 = applyShopFilters(CATALOG, { manufacturer: '824' });
   check('(b) manufacturer filter matches the brand field, trimmed',
     ids(maker824) === '1,4', ids(maker824));

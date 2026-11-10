@@ -10,12 +10,13 @@ import { fail, round2 } from './http.js';
 // now, not smoke-shop goods — plus fragrance & body care (perfumes,
 // colognes, deodorant), added by the owner the same evening.
 // 'candles' joined the scented-goods shelf later that night.
+// 'jeans' joined the clothes shelf on 2026-11-10 (owner request).
 // The legacy ids (flower / vapes / gummies / pouches / nic-vapes) are
 // retired — the API rejects them. 'test-item' is a first-class
 // category for listings that need nothing beyond a name and a price
 // (the $8.24 nothing item — see docs/CLOTHING.md).
 export const CATEGORIES = [
-  'shirts', 'hoodies', 'hats', 'accessories',
+  'shirts', 'jeans', 'hoodies', 'hats', 'accessories',
   'fragrances', 'candles', 'body-care', 'test-item', 'other',
 ];
 

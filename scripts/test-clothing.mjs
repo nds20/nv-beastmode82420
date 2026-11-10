@@ -22,6 +22,9 @@
 //   (h) a deodorant (body-care + scent) -> 201
 //   (k) a candle (candles + scent, owner addition 2026-11-09) -> 201
 //       and groups into the Fragrances department
+//   (l) jeans (owner addition 2026-11-10): creates via the route,
+//       sizes round-trip, groups into Clothes; the editor's label
+//       keys and the server allowlist cannot drift apart
 //   (i) departments: categoryLabel map + groupByDepartment grouping
 //       (the pure helpers Products.jsx renders from)
 //   (j) editing a legacy row WITHOUT the retired keys in the payload
@@ -33,7 +36,7 @@ import {
   getProduct,
   createProduct,
 } from '../functions/api/_lib/db.js';
-import { normalizeProduct } from '../functions/api/_lib/validate.js';
+import { CATEGORIES, normalizeProduct } from '../functions/api/_lib/validate.js';
 import { issueToken } from '../functions/api/_lib/auth.js';
 import {
   onRequestPost as productsCreate,
@@ -483,12 +486,36 @@ let hoodie;
 }
 
 // =====================================================================================
+// (l) Jeans: the clothes shelf's fifth category (owner addition
+// 2026-11-10) — validates through the real route, waist sizes and
+// all, exactly like a shirt does.
+// =====================================================================================
+{
+  const db = new StubDB();
+  const env = baseEnv(db);
+  const headers = await authHeaders(env);
+  const jeans = await createViaRoute(env, headers, {
+    name: 'Slim Jeans',
+    category: 'jeans',
+    brand: '824 Denim',
+    price: 45,
+    sizes: ['30', '32', '34'],
+  });
+  check('(l) jeans create -> 201', jeans.status === 201, `status ${jeans.status}: ${JSON.stringify(jeans.data)}`);
+  check('(l) jeans category round-trips', jeans.data.category === 'jeans', JSON.stringify(jeans.data.category));
+  check('(l) jeans sizes round-trip',
+    Array.isArray(jeans.data.sizes) && jeans.data.sizes.join(',') === '30,32,34',
+    JSON.stringify(jeans.data.sizes));
+}
+
+// =====================================================================================
 // (i) Departments + labels: the pure helpers the shop page renders.
 // =====================================================================================
 {
   check('(i) every category id has a clean label',
     Object.entries(CATEGORY_LABELS).every(([, label]) => typeof label === 'string' && label.length > 0) &&
     categoryLabel('shirts') === 'Shirts' &&
+    categoryLabel('jeans') === 'Jeans' &&
     categoryLabel('fragrances') === 'Fragrances' &&
     categoryLabel('candles') === 'Candles' &&
     categoryLabel('body-care') === 'Body Care' &&
@@ -510,6 +537,13 @@ let hoodie;
   check('(i) within-department order is the input order',
     groups[0].products.map((p) => p.id).join(',') === '1,3',
     JSON.stringify(groups[0].products.map((p) => p.id)));
+  check('(i) editor list and server allowlist cannot drift (label keys === CATEGORIES)',
+    Object.keys(CATEGORY_LABELS).join(',') === CATEGORIES.join(','),
+    `${Object.keys(CATEGORY_LABELS).join(',')} vs ${CATEGORIES.join(',')}`);
+  const jeansGroup = groupByDepartment([{ id: 12, category: 'jeans' }]);
+  check('(i) jeans group into the Clothes department',
+    jeansGroup.length === 1 && jeansGroup[0].label === 'Clothes',
+    JSON.stringify(jeansGroup.map((g) => g.label)));
   const candleGroup = groupByDepartment([{ id: 11, category: 'candles' }]);
   check('(i) candles group into the Fragrances department',
     candleGroup.length === 1 && candleGroup[0].label === 'Fragrances',

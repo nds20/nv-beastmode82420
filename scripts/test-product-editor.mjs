@@ -24,6 +24,8 @@
 //   (e) DELETE removes the product (subsequent GET one -> 404, a
 //       second DELETE -> 404)
 //   (f) the write endpoints require admin (no token -> 401)
+//   (g) a jeans product (owner addition 2026-11-10) creates through
+//       the editor's JSON path and round-trips its category
 
 import {
   listProducts,
@@ -519,6 +521,35 @@ const PNG_BYTES = new Uint8Array([
   );
   check('(f) create without a token -> 401', res.status === 401, `status ${res.status}`);
   check('(f) nothing was written', db.state.products.length === 0);
+}
+
+// =====================================================================================
+// (g) Jeans (owner addition 2026-11-10): the editor's category select
+// derives from CATEGORY_LABELS, whose keys the clothing suite pins
+// to the server allowlist — this proves the save path itself: a
+// create carrying category 'jeans' succeeds and the category
+// round-trips through rowToProduct and storage.
+// =====================================================================================
+{
+  const db = new StubDB();
+  const env = baseEnv(db);
+  const headers = await authHeaders(env);
+  const res = await productsCreate(
+    ctx(
+      jsonRequest(
+        `${ORIGIN}/api/products`,
+        'POST',
+        { name: 'Slim Jeans', category: 'jeans', price: 45, sizes: ['30', '32'] },
+        headers
+      ),
+      env
+    )
+  );
+  const created = await res.json().catch(() => ({}));
+  check('(g) jeans create via the editor JSON path -> 201', res.status === 201, `status ${res.status}`);
+  check('(g) jeans category round-trips', created.category === 'jeans', JSON.stringify(created.category));
+  const reread = await getProduct(env, created.id);
+  check('(g) jeans category persisted', Boolean(reread) && reread.category === 'jeans');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

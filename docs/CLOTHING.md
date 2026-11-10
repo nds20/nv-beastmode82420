@@ -17,6 +17,7 @@ The category carries the kind of product now (the old free-text
 | id           | Chip / label | Department  |
 | ------------ | ------------ | ----------- |
 | `shirts`     | Shirts       | Clothes     |
+| `jeans`      | Jeans        | Clothes     |
 | `hoodies`    | Hoodies      | Clothes     |
 | `hats`       | Hats         | Clothes     |
 | `accessories`| Accessories  | Clothes     |

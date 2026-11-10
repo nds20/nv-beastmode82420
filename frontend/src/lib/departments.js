@@ -11,6 +11,7 @@
 // (the API rejects anything else); labels are how shoppers see them.
 export const CATEGORY_LABELS = {
   shirts: 'Shirts',
+  jeans: 'Jeans',
   hoodies: 'Hoodies',
   hats: 'Hats',
   accessories: 'Accessories',
@@ -51,7 +52,7 @@ export function genderLabel(gender) {
 // Departments group the categories for the shop page's grouped
 // browsing mode (no chip selected). Order here is display order.
 export const DEPARTMENTS = [
-  { id: 'clothes', label: 'Clothes', categories: ['shirts', 'hoodies', 'hats', 'accessories'] },
+  { id: 'clothes', label: 'Clothes', categories: ['shirts', 'jeans', 'hoodies', 'hats', 'accessories'] },
   { id: 'fragrances', label: 'Fragrances', categories: ['fragrances', 'candles'] },
   { id: 'body-care', label: 'Body Care', categories: ['body-care'] },
   { id: 'more', label: 'More', categories: ['test-item', 'other'] },

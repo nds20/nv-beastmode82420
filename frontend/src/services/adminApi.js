@@ -173,3 +173,128 @@ export async function fetchAdminCustomers() {
 export async function fetchAdminProducts() {
   return adminFetch('/api/products', {}, { authed: false });
 }
+
+// ----- Product writes (the admin product editor) ---------------------------
+//
+// Saving is ALWAYS two steps when a photo is attached, and the reason
+// is null: the JSON body can say `"stockQty": null` (switch a tracked
+// product back to untracked), `"price": null` (Price TBD) and clear a
+// measurement with null, while a multipart form cannot express null
+// at all (every field is a string; OMITTING a field on update keeps
+// the old value — see normalizeProduct's pick() in _lib/validate.js).
+// So:
+//
+//   1. The field payload goes as JSON — POST /api/products to create,
+//      PUT /api/products/:id to edit. This is the authoritative save.
+//   2. If a photo file was chosen, it follows as a second PUT whose
+//      multipart body carries ONLY the photo. readProductInput then
+//      yields no fields, normalizeProduct falls back to the saved
+//      product for everything, and attachPhoto swaps the image.
+//
+// If step 2 fails (e.g. the deployment has no PRODUCT_PHOTOS bucket —
+// the server answers a clear 400), the error is rethrown with
+// `err.savedProduct` attached: the product itself IS saved, and the
+// editor adopts it as an edit form so pressing Save again retries the
+// photo instead of creating a duplicate.
+
+/** '' / whitespace -> null (clears the field); anything else trimmed. */
+function blankToNull(value) {
+  if (value === undefined || value === null) return null;
+  const s = String(value).trim();
+  return s === '' ? null : s;
+}
+
+/** The editor's comma-separated effects text -> the API's array. */
+function splitEffects(text) {
+  return String(text || '')
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Shape the editor's form state into the JSON payload. Numeric fields
+ * go as the strings the admin typed (or null when blank): the server
+ * parses and range-checks them (parseOptionalNumber & friends in
+ * _lib/validate.js), so a typo surfaces as the server's 400 message
+ * rather than being silently coerced here.
+ */
+function buildProductPayload(form) {
+  return {
+    name: String(form.name || '').trim(),
+    subtitle: String(form.subtitle || '').trim(),
+    category: form.category,
+    type: String(form.type || '').trim(),
+    price: blankToNull(form.price),
+    thc: blankToNull(form.thc),
+    strength: String(form.strength || '').trim(),
+    unit: blankToNull(form.unit),
+    effects: splitEffects(form.effectsText),
+    tile: Array.isArray(form.tile) ? form.tile : undefined,
+    weightOz: blankToNull(form.weightOz),
+    lengthIn: blankToNull(form.lengthIn),
+    widthIn: blankToNull(form.widthIn),
+    heightIn: blankToNull(form.heightIn),
+    stockQty: form.stockMode === 'tracked' ? blankToNull(form.stockQty) : null,
+    lowStockThreshold: blankToNull(form.lowStockThreshold),
+    freeShipping: Boolean(form.freeShipping),
+  };
+}
+
+/**
+ * Create or update a product from the editor's form state.
+ * `form.id` absent -> create; present -> update. `photoFile` is a
+ * File or null. Resolves to the saved product (with its photo, when
+ * one was attached). See the two-step note above for the
+ * err.savedProduct contract on photo failures.
+ */
+export async function saveAdminProduct(form, photoFile) {
+  const payload = buildProductPayload(form);
+  const saved = form.id
+    ? await adminFetch(`/api/products/${form.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    : await postJson('/api/products', payload);
+
+  if (!photoFile) return saved;
+
+  const fd = new FormData();
+  fd.append('photo', photoFile);
+  try {
+    return await adminFetch(`/api/products/${saved.id}`, {
+      method: 'PUT',
+      body: fd,
+    });
+  } catch (err) {
+    err.savedProduct = saved;
+    throw err;
+  }
+}
+
+/**
+ * Delete a product (DELETE /api/products/:id -> 204 No Content).
+ * Resolves true on success. This cannot ride adminFetch: a 204 has
+ * no body, and adminFetch reads an unparseable body as "server
+ * unreachable" — so the same error semantics are spelled out here.
+ * The product's photo object is intentionally left in R2 (see
+ * docs/PRODUCT_EDITOR.md).
+ */
+export async function deleteAdminProduct(id) {
+  const token = getAdminToken();
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response;
+  try {
+    response = await fetch(`/api/products/${id}`, { method: 'DELETE', headers });
+  } catch {
+    throw new Error(UNAVAILABLE_MESSAGE);
+  }
+  if (response.ok) return true;
+  if (response.status === 401 && token) clearAdminToken();
+  const data = await response.json().catch(() => null);
+  const err = new Error((data && data.error) || `Request failed (${response.status})`);
+  err.status = response.status;
+  throw err;
+}

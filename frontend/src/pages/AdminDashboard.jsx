@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   clearAdminToken,
   fetchAdminCustomers,
@@ -24,6 +24,9 @@ import { money, priceLabel } from '../components/ProductCard';
 //   - GET   /api/admin/customers        -> { customers }, newest first,
 //     public fields only (never salt/hash)
 //   - GET   /api/products               -> the shared catalog list
+//     (a read-only summary below; adding, editing and deleting
+//     products lives on the Products page, /shop/admin/products,
+//     behind the Products tab — see docs/PRODUCT_EDITOR.md)
 //
 // A 401 from any call means the token expired or was revoked:
 // adminApi clears it, and this page sends the admin back to sign in.
@@ -160,6 +163,15 @@ export default function AdminDashboard() {
           Log Out
         </button>
       </div>
+
+      <nav className="admin-tabs" aria-label="Admin">
+        <span className="admin-tab is-active" aria-current="page">
+          Dashboard
+        </span>
+        <Link className="admin-tab" to="/shop/admin/products">
+          Products
+        </Link>
+      </nav>
 
       {authSource === 'demo' && (
         <div className="notice danger" role="note">
@@ -313,13 +325,15 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <h2 className="section-title" style={{ marginTop: 44 }}>
-        Products
-      </h2>
+      <div className="products-head">
+        <h2 className="section-title">Products</h2>
+        <Link className="btn" to="/shop/admin/products">
+          Open the Products page
+        </Link>
+      </div>
       <p className="section-sub">
-        The live catalog, exactly as the storefront serves it. Adding and
-        editing products happens through the API — this list is the
-        read-back that proves what is actually on the shelf.
+        The live catalog at a glance, exactly as the storefront serves
+        it. Add, edit and delete products on the Products page.
       </p>
       {productsError && (
         <p className="form-error" role="alert">
@@ -333,14 +347,15 @@ export default function AdminDashboard() {
         <p className="empty-msg">
           The catalog is empty right now — there are no products on the
           shelf. That is the real state of the shop, not a loading error.
+          Use the Products page to put the first one on it.
         </p>
       )}
       {products !== null && products.length > 0 && (
         <div className="orders-list">
           {products.map((p) => {
-            // Inventory (2026-11-09): stock state at a glance. Counts
-            // are managed through the API (PATCH
-            // /api/admin/products/:id/stock — see docs/INVENTORY.md).
+            // Inventory (2026-11-09): stock state at a glance, read-only
+            // here — counts are managed on the Products page (or the
+            // stock PATCH endpoint — see docs/INVENTORY.md).
             const threshold =
               p.lowStockThreshold != null ? p.lowStockThreshold : ADMIN_LOW_STOCK_DEFAULT;
             const stockLabel =

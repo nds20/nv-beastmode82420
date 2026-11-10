@@ -598,3 +598,63 @@ textarea.ag-input { letter-spacing: normal; text-align: left; }
 /* About text in dark black on the yellow (owner direction 2026-11-01). */
 .hub-page .hub-about p { color: #0b0b0c; }
 .hub-page .hub-about p strong { color: #000; }
+
+/* ---------- Admin product editor (dedicated Products page) ---------- */
+/* Single column at every width: .field stacks and .field-row already
+   collapses to one column at 640px, so the form stays usable on the
+   owner's phone (390px) without a separate layout. */
+.products-head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.products-head .section-title { flex: 1 1 220px; margin-top: 44px; }
+.product-editor {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 22px; margin: 6px 0 22px;
+}
+.editor-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.editor-head h3 { font-family: var(--display); font-size: 26px; letter-spacing: 1.2px; font-weight: 400; }
+.product-editor .editor-group-label {
+  display: block; font-size: 12px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 7px;
+}
+/* Radio and checkbox rows: scoped under .product-editor so they
+   out-specify the generic .field label rules they sit inside. */
+.product-editor .radio-line, .product-editor .check-line {
+  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
+  font-size: 14.5px; font-weight: 400; letter-spacing: normal;
+  text-transform: none; color: var(--ink); margin: 10px 0;
+}
+.product-editor .radio-line input, .product-editor .check-line input {
+  margin-top: 3px; width: 17px; height: 17px; flex: none;
+  padding: 0; background: transparent; border: none; accent-color: var(--gold);
+}
+.product-editor .hint, .field .hint { font-size: 13px; color: var(--muted); margin-top: 7px; }
+.product-editor input[type='color'] { padding: 4px; height: 48px; cursor: pointer; }
+.editor-thumb {
+  display: block; max-width: 140px; max-height: 140px; object-fit: cover;
+  border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px;
+}
+.editor-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+/* No-shipping chosen: weight/dims stay visible and editable (values
+   are kept) but read as inactive — shipping.js ignores them. */
+.dims-off { opacity: .55; }
+.btn-ghost.danger:hover { border-color: var(--danger); color: var(--danger); }
+@media (max-width: 640px) { .product-editor { padding: 16px; } }
+
+/* ---------- Admin tabs + Products page ---------- */
+/* The admin sits on the yellow page background, so — like the other
+   page-level admin text — the tabs use the dark blue-black tones of
+   the light-theme overrides rather than the dark-panel vars. */
+.admin-tabs {
+  display: flex; gap: 4px; flex-wrap: wrap; margin: 24px 0 6px;
+  border-bottom: 1px solid rgba(6, 30, 52, .35);
+}
+.admin-tab {
+  padding: 10px 16px; margin-bottom: -1px;
+  font-size: 13px; font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; text-decoration: none;
+  color: rgba(6, 30, 52, .6); border-bottom: 2px solid transparent;
+}
+a.admin-tab:hover { color: #07304d; }
+.admin-tab.is-active { color: #0d1520; border-bottom-color: var(--gold-dim); }
+a.btn { text-decoration: none; }
+/* Scroll target for the editor when a list row's Edit is tapped. */
+.editor-anchor { scroll-margin-top: 14px; }

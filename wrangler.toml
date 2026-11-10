@@ -35,10 +35,11 @@ binding = "DB"
 database_name = "beastmode82420-db"
 database_id = "51f2d1ee-e244-47ac-9fe6-fa03aa28361a"
 
-# Uploaded product photos — same R2 bucket as the live shop.
+# Uploaded product photos — R2 bucket renamed by the owner 2026-11-10
+# (was smokeshop-product-photos; the stale name silently broke uploads).
 [[r2_buckets]]
 binding = "PRODUCT_PHOTOS"
-bucket_name = "smokeshop-product-photos"
+bucket_name = "beastmode82420-product-photos"
 
 # Admin credentials (BEASTMODE_ADMIN_USER / BEASTMODE_ADMIN_PASSWORD /
 # BEASTMODE_ADMIN_SECRET) are NOT set here. Add them as encrypted

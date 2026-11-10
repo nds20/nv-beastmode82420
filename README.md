@@ -120,7 +120,8 @@ production data.
    Worker; the current shop's Worker keeps serving the domain.
 2. It binds the **same** D1 (`smokeshop-db`,
    `bb452b0e-8bfb-4042-8d08-4f8e902c8164`) and the **same** R2 bucket
-   (`smokeshop-product-photos`), so no data moves.
+   (`beastmode82420-product-photos` — renamed from
+   `smokeshop-product-photos` by the owner on 2026-11-10), so no data moves.
 3. Set the same secrets on the new Worker as the old one has
    (`BEASTMODE_ADMIN_USER` / `BEASTMODE_ADMIN_PASSWORD` /
    `BEASTMODE_ADMIN_SECRET`, and Stripe keys if used) — never commit

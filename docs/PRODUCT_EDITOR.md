@@ -200,6 +200,45 @@ The generic multipart PUT on `/api/products/:id` still exists
 (it is the Pages-ported API contract); the editor no longer
 uses it for photos.
 
+**Update 2026-11-10 (owner directive) — the shrink is now
+guaranteed, and a giant original is never sent.** The single
+1600 px / q0.85 prep pass below was not enough: an iPhone photo
+whose prep failed (or whose one pass stayed huge) still went up
+as a multi-MB original — the exact upload that dies in transit.
+At the owner's word ("make the change for too large a picture to
+shrink it"), `photoPrep.js` now works like this:
+
+- **The ladder.** Prep attempts start at 256 KB (was 1 MB; SVG
+  and GIF still pass through, HEIC is still always attempted).
+  The encoder walks a ladder — 1600 px/q0.85, 1200 px/q0.80,
+  900 px/q0.75, 700 px/q0.70 — and stops at the first JPEG at or
+  under the **~900 KB target** (`TARGET_UPLOAD_BYTES`). If no
+  step reaches the target, the **smallest** result produced is
+  the upload: a shrink that merely helps still beats the
+  original. A re-encode larger than the original is discarded in
+  favor of the original only when the original is already
+  at/under target (HEIC exception unchanged: a conversion is kept
+  at any size). The pick is the pure, node-tested
+  `chooseShrinkResult`.
+- **Decode robustness.** `createImageBitmap` with
+  `imageOrientation: 'from-image'` first, then a plain bitmap,
+  then an `<img>` element fed by an object URL (revoked after
+  use) — the path that works where `createImageBitmap` is
+  missing or refuses the file.
+- **The new fallback contract.** Prep still never throws, but a
+  photo **larger than 2 MB** (`HARD_SEND_CAP`) that no
+  decode/encode path could shrink is **not uploaded at all**:
+  `preparePhotoForUpload` resolves `uploadFile: null` +
+  `tooLargeUnshrinkable: true`, and `saveAdminProduct` fails the
+  photo step without sending — details already saved, same
+  `err.savedProduct` contract — with
+  `err.photoFailure.code 'too-large-unshrinkable'`. The editor
+  shows the plain message: the photo is very large and this
+  device couldn't shrink it; pick a smaller copy, screenshot it,
+  or export it as JPEG, then save again. Originals at or under
+  2 MB that prep cannot process still upload untouched, exactly
+  as before.
+
 Original note (2026-11-10, earlier): after a live failure — the
 owner attached a photo
 snapped on his iPhone, the details saved, and the photo step died
@@ -225,15 +264,17 @@ step 2):
   the fallback decode paths rely on the decoder's own EXIF
   handling.
 - **Prep only when it helps.** SVG and GIF pass through untouched;
-  files at or under 1 MB pass through untouched; a re-encode that
-  comes out larger than the original is discarded (the one
-  exception is HEIC, whose re-encode is kept at any size — the
-  server rejects the `.heic` extension outright, so conversion is
-  the only path).
-- **The fallback rule: prep never fails an upload.** It never
-  throws; any decode/canvas/encode problem returns the original
-  file and the upload proceeds exactly as it did before this
-  existed.
+  files at or under 256 KB pass through untouched (lowered from
+  1 MB by the ladder update above); a re-encode that comes out
+  larger than the original is discarded when the original is
+  already small enough to send (the one exception is HEIC, whose
+  re-encode is kept at any size — the server rejects the `.heic`
+  extension outright, so conversion is the only path).
+- **The fallback rule.** Prep never throws. Any
+  decode/canvas/encode problem with a file at or under 2 MB
+  returns the original file and the upload proceeds exactly as it
+  did before this existed; a larger file that could not be shrunk
+  is not sent at all (the ladder update above).
 - **Friendly failures.** `adminFetch` now tags the failures where
   the server never got a usable word in with a `.code` (`network`
   when fetch itself threw, `bad-response` when the answer wasn't
@@ -248,10 +289,14 @@ step 2):
   the standing "details were saved, press Save again" suffix.
 
 Tests: `node scripts/test-photo-prep.mjs` — the pure helpers
-(HEIC detection, prep gating, dimension math, filename mapping,
-message mapping) plus the guarantee that prep resolves to the
-original file where no decoder exists. The canvas path itself is
-browser-only and covered by bundle inspection instead.
+(HEIC detection, prep gating at the 256 KB threshold, dimension
+math, filename mapping, message mapping including the
+too-large-unshrinkable case, the ladder constants and
+`chooseShrinkResult`) plus the fallback contract where no decoder
+exists: an unshrinkable file over 2 MB resolves with
+`uploadFile: null`, an unshrinkable file at or under 2 MB still
+resolves to the original. The canvas path itself is browser-only
+and covered by bundle inspection instead.
 
 ## Delete policy
 

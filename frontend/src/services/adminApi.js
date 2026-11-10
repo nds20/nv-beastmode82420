@@ -365,12 +365,19 @@ export async function fetchAdminProducts() {
 // file that was actually uploaded.
 //
 // Before step 2, the photo is prepared in the browser
-// (lib/photoPrep.js): downscaled to <= 1600 px and re-encoded as
-// JPEG. Phone cameras shoot HEIC at several MB — the server only
-// takes jpg/png/webp/gif/svg up to 10 MB, and a multi-MB upload on
-// cellular can drop mid-flight (the 2026-11-10 failure this prep
-// fixes). Prep never throws and never blocks: a photo it cannot
-// process uploads as the original file, exactly as before.
+// (lib/photoPrep.js): decoded and walked down a shrink ladder
+// (smaller dimensions, lower quality) until the JPEG is at most
+// ~900 KB. Phone cameras shoot HEIC at several MB — the server only
+// takes jpg/png/webp/gif/svg up to 10 MB, and a multi-MB upload
+// from the phone kept dying in transit with a non-JSON edge answer
+// (the 2026-11-10 failure this prep fixes). Prep never throws. It
+// has exactly one hard stop: a photo larger than 2 MB that the
+// device itself could not shrink is NOT sent — sending that
+// original is precisely the upload that keeps dying — and the save
+// fails with err.photoFailure.code 'too-large-unshrinkable' after
+// the details have saved (same savedProduct contract as any other
+// photo failure). Smaller photos prep cannot process still upload
+// as the original file, exactly as before.
 
 /** '' / whitespace -> null (clears the field); anything else trimmed. */
 function blankToNull(value) {
@@ -486,7 +493,26 @@ export async function saveAdminProduct(form, photoFile) {
   if (!photoFile) return saved;
 
   const prep = await preparePhotoForUpload(photoFile);
-  const uploadFile = prep.uploadFile || photoFile;
+  if (!prep.uploadFile) {
+    // Prep's one hard stop (lib/photoPrep.js): the original is a
+    // giant this device could not shrink, and uploading it as-is is
+    // the exact send that keeps dying in transit — so nothing is
+    // sent at all. The details above already saved; fail with the
+    // same contract as a photo-step error (savedProduct for the
+    // editor's adopt-and-retry, photoFailure for its message).
+    const err = new Error(
+      'That photo is very large, and this device could not shrink it.'
+    );
+    err.savedProduct = saved;
+    err.photoFailure = {
+      code: 'too-large-unshrinkable',
+      tooLargeUnshrinkable: true,
+      uploadBytes: Number(prep.originalBytes || photoFile.size || 0),
+      heicUnconverted: Boolean(prep.heicUnconverted),
+    };
+    throw err;
+  }
+  const uploadFile = prep.uploadFile;
   const fd = new FormData();
   fd.append('photo', uploadFile);
   try {

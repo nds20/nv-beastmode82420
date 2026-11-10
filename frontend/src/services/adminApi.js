@@ -14,6 +14,11 @@
 
 const TOKEN_KEY = 'beastmode_admin_token';
 const AUTH_SOURCE_KEY = 'beastmode_admin_auth_source';
+// Set by a sign-in whose account still runs on a temporary password
+// (multi-admin, 2026-11-09): the UI routes that admin to the
+// set-password page. Advisory only in v1 — the token is fully
+// valid; see docs/ADMINS.md for the enforcement honesty note.
+const MUST_CHANGE_KEY = 'beastmode_admin_must_change';
 
 const UNAVAILABLE_MESSAGE =
   'The admin server could not be reached — please try again in a moment.';
@@ -41,16 +46,34 @@ export function setAdminSession(data) {
     if (data && data.authSource) {
       localStorage.setItem(AUTH_SOURCE_KEY, data.authSource);
     }
+    if (data && data.token) {
+      // A fresh sign-in re-decides the flag: set it only when THIS
+      // login reported mustChangePassword, so a stale flag from a
+      // previous session can never strand a later admin on the
+      // set-password page.
+      if (data.mustChangePassword) localStorage.setItem(MUST_CHANGE_KEY, '1');
+      else localStorage.removeItem(MUST_CHANGE_KEY);
+    }
   } catch {
     // Storage unavailable (private mode, quota) — sign-in itself still
     // worked; the session just won't persist across visits.
   }
 }
 
+/** True when the current session's account must set its own password. */
+export const getAdminMustChange = () => {
+  try {
+    return localStorage.getItem(MUST_CHANGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
 export const clearAdminToken = () => {
   try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(AUTH_SOURCE_KEY);
+    localStorage.removeItem(MUST_CHANGE_KEY);
   } catch {
     // Nothing to clear.
   }
@@ -155,6 +178,78 @@ export async function adminRecoveryReset(username, recoveryCode, newPassword) {
     { authed: false }
   );
   setAdminSession(data);
+  return data;
+}
+
+// ----- Admin accounts (multi-admin: owner management + own password) -----------
+//
+// The accounts endpoints (functions/api/admin/accounts/*, see
+// docs/ADMINS.md):
+//   GET    /api/admin/accounts                 owner-only list
+//   POST   /api/admin/accounts { username }    owner-only add; the
+//          response carries the one-time temporaryPassword — the
+//          server hashes it and never shows it again.
+//   DELETE /api/admin/accounts/:username       owner-only remove -> 204
+//   POST   /api/admin/accounts/change-password any stored-account
+//          admin changing HER OWN password (also clears must_change)
+
+/** The stored admin accounts: { accounts: [{ username, createdAt, isOwner }] }. Owner-only — a 403 means "not the owner". */
+export async function fetchAdminAccounts() {
+  return adminFetch('/api/admin/accounts');
+}
+
+/**
+ * Add an admin (POST /api/admin/accounts). Resolves to
+ * { username, temporaryPassword, createdAt } — show the temporary
+ * password to the owner ONCE; there is no way to read it back.
+ */
+export async function createAdminAccount(username) {
+  return postJson('/api/admin/accounts', { username });
+}
+
+/**
+ * Delete an admin (DELETE /api/admin/accounts/:username -> 204).
+ * Same 204-with-no-body shape as deleteAdminProduct, so the same
+ * hand-rolled fetch: adminFetch would read the empty body as
+ * "server unreachable".
+ */
+export async function deleteAdminAccount(username) {
+  const token = getAdminToken();
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response;
+  try {
+    response = await fetch(`/api/admin/accounts/${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+      headers,
+    });
+  } catch {
+    throw new Error(UNAVAILABLE_MESSAGE);
+  }
+  if (response.ok) return true;
+  if (response.status === 401 && token) clearAdminToken();
+  const data = await response.json().catch(() => null);
+  const err = new Error((data && data.error) || `Request failed (${response.status})`);
+  err.status = response.status;
+  throw err;
+}
+
+/**
+ * Change the signed-in admin's own password
+ * (POST /api/admin/accounts/change-password). On success the
+ * must-change flag that may have routed her here is spent — clear
+ * the local copy so the dashboard stops sending her back.
+ */
+export async function changeAdminPassword(currentPassword, newPassword) {
+  const data = await postJson('/api/admin/accounts/change-password', {
+    currentPassword,
+    newPassword,
+  });
+  try {
+    localStorage.removeItem(MUST_CHANGE_KEY);
+  } catch {
+    // Storage unavailable — the server-side flag is cleared either way.
+  }
   return data;
 }
 

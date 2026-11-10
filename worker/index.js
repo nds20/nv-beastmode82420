@@ -29,6 +29,9 @@
 //   GET    /api/admin/setup-status
 //   POST   /api/admin/setup
 //   POST   /api/admin/recovery/reset
+//   GET    /api/admin/accounts            POST /api/admin/accounts   (owner)
+//   DELETE /api/admin/accounts/:username                             (owner)
+//   POST   /api/admin/accounts/change-password                       (admin)
 //   GET    /api/admin/orders                                          (admin)
 //   GET    /api/admin/orders/:id                                      (admin)
 //   PATCH  /api/admin/orders/:id/seen                                 (admin)
@@ -67,6 +70,12 @@ import { onRequestPost as adminLogin } from '../functions/api/admin/login.js';
 import { onRequestGet as adminSetupStatus } from '../functions/api/admin/setup-status.js';
 import { onRequestPost as adminSetup } from '../functions/api/admin/setup.js';
 import { onRequestPost as adminRecoveryReset } from '../functions/api/admin/recovery/reset.js';
+import {
+  onRequestGet as adminAccountsList,
+  onRequestPost as adminAccountsCreate,
+} from '../functions/api/admin/accounts/index.js';
+import { onRequestDelete as adminAccountDelete } from '../functions/api/admin/accounts/[username].js';
+import { onRequestPost as adminChangePassword } from '../functions/api/admin/accounts/change-password.js';
 import { onRequestGet as adminOrdersList } from '../functions/api/admin/orders.js';
 import { onRequestGet as adminOrderGet } from '../functions/api/admin/orders/[id].js';
 import { onRequestPatch as adminOrderSeen } from '../functions/api/admin/orders/[id]/seen.js';
@@ -98,6 +107,11 @@ const ROUTES = [
   { parts: ['api', 'admin', 'setup-status'], handlers: { GET: adminSetupStatus } },
   { parts: ['api', 'admin', 'setup'], handlers: { POST: adminSetup } },
   { parts: ['api', 'admin', 'recovery', 'reset'], handlers: { POST: adminRecoveryReset } },
+  { parts: ['api', 'admin', 'accounts'], handlers: { GET: adminAccountsList, POST: adminAccountsCreate } },
+  // The literal 'change-password' route must precede ':username',
+  // which would otherwise capture it.
+  { parts: ['api', 'admin', 'accounts', 'change-password'], handlers: { POST: adminChangePassword } },
+  { parts: ['api', 'admin', 'accounts', ':username'], handlers: { DELETE: adminAccountDelete } },
   { parts: ['api', 'admin', 'orders'], handlers: { GET: adminOrdersList } },
   { parts: ['api', 'admin', 'orders', ':id'], handlers: { GET: adminOrderGet } },
   { parts: ['api', 'admin', 'orders', ':id', 'seen'], handlers: { PATCH: adminOrderSeen } },

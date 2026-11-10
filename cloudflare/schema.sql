@@ -101,7 +101,12 @@ CREATE TABLE IF NOT EXISTS admin_accounts (
   username   TEXT PRIMARY KEY COLLATE NOCASE,
   salt       TEXT NOT NULL,
   hash       TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  -- Multi-admin (2026-11-09): 1 while the account still runs on an
+  -- owner-issued temporary password; login then asks the holder to
+  -- set her own (see docs/ADMINS.md). DEFAULT 0 — accounts that
+  -- chose their own password are never flagged.
+  must_change INTEGER NOT NULL DEFAULT 0
 );
 
 -- Customer (shopper) accounts. Ids AUTOINCREMENT from 1 and NO rows are

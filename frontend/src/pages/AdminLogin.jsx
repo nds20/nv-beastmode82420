@@ -4,6 +4,7 @@ import {
   adminLogin,
   adminSetup,
   fetchSetupStatus,
+  getAdminMustChange,
   getAdminToken,
 } from '../services/adminApi';
 import PasswordField from '../components/PasswordField';
@@ -23,6 +24,9 @@ import PasswordField from '../components/PasswordField';
 // Password fields use the shared PasswordField (show/hide eye
 // toggle), and login mode carries a "Forgot password?" link to the
 // recovery page ("/shop/admin/forgot" — see docs/ADMIN_RECOVERY.md).
+// A login that reports mustChangePassword (a co-admin still on her
+// temporary password — see docs/ADMINS.md) routes to the
+// set-password page instead of the dashboard.
 export default function AdminLogin() {
   const navigate = useNavigate();
   const [mode, setMode] = useState('login');
@@ -34,9 +38,15 @@ export default function AdminLogin() {
   const [status, setStatus] = useState(null);
 
   // Already holding a token? Straight to the dashboard — it will
-  // bounce back here if the token turns out to be expired.
+  // bounce back here if the token turns out to be expired. A session
+  // whose account still runs on a temporary password goes to the
+  // set-password page instead (multi-admin forced first change).
   useEffect(() => {
-    if (getAdminToken()) navigate('/shop/admin', { replace: true });
+    if (getAdminToken()) {
+      navigate(getAdminMustChange() ? '/shop/admin/set-password' : '/shop/admin', {
+        replace: true,
+      });
+    }
   }, [navigate]);
 
   useEffect(() => {
@@ -63,12 +73,17 @@ export default function AdminLogin() {
     }
     setLoading(true);
     try {
+      let data;
       if (mode === 'setup') {
-        await adminSetup(username.trim(), password);
+        data = await adminSetup(username.trim(), password);
       } else {
-        await adminLogin(username.trim(), password);
+        data = await adminLogin(username.trim(), password);
       }
-      navigate('/shop/admin', { replace: true });
+      // A stored account still on its temporary password sets its
+      // own before landing on the dashboard (multi-admin, 2026-11-09).
+      navigate(data && data.mustChangePassword ? '/shop/admin/set-password' : '/shop/admin', {
+        replace: true,
+      });
     } catch (err) {
       setError(err.message);
     } finally {

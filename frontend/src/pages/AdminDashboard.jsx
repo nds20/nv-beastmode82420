@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   clearAdminToken,
+  createAdminAccount,
+  deleteAdminAccount,
+  fetchAdminAccounts,
   fetchAdminCustomers,
   fetchAdminOrder,
   fetchAdminOrders,
@@ -23,10 +26,16 @@ import { money, priceLabel } from '../components/ProductCard';
 //     status control here because no endpoint backs one.
 //   - GET   /api/admin/customers        -> { customers }, newest first,
 //     public fields only (never salt/hash)
+//   - GET   /api/admin/customers        -> { customers }, newest first,
+//     public fields only (never salt/hash)
 //   - GET   /api/products               -> the shared catalog list
 //     (a read-only summary below; adding, editing and deleting
 //     products lives on the Products page, /shop/admin/products,
 //     behind the Products tab — see docs/PRODUCT_EDITOR.md)
+//   - GET   /api/admin/accounts         -> { accounts } (OWNER ONLY:
+//     the Admins section below renders only when this succeeds; a
+//     403 means "signed in, but not the owner" and the section
+//     simply never appears — see docs/ADMINS.md)
 //
 // A 401 from any call means the token expired or was revoked:
 // adminApi clears it, and this page sends the admin back to sign in.
@@ -50,6 +59,16 @@ export default function AdminDashboard() {
   const [details, setDetails] = useState({});
   const [detailError, setDetailError] = useState('');
   const [seenBusyId, setSeenBusyId] = useState(null);
+  // Admins section (owner-only): accounts stays null until the
+  // owner-only list call succeeds — a 403 (a co-admin is signed in)
+  // or any other failure simply leaves the section unrendered.
+  const [accounts, setAccounts] = useState(null);
+  const [accountsError, setAccountsError] = useState('');
+  const [newAdminName, setNewAdminName] = useState('');
+  const [addBusy, setAddBusy] = useState(false);
+  const [tempReveal, setTempReveal] = useState(null);
+  const [copyNote, setCopyNote] = useState('');
+  const [removeBusyName, setRemoveBusyName] = useState('');
 
   const bounceToLogin = useCallback(() => {
     clearAdminToken();
@@ -99,6 +118,18 @@ export default function AdminDashboard() {
       })
       .catch((err) => {
         if (!cancelled) handleError(err, setCustomersError);
+      });
+    // Owner-only: success fills the Admins section; ANY failure
+    // (403 for co-admins above all) leaves it hidden — silently,
+    // because for a co-admin there is nothing to explain.
+    fetchAdminAccounts()
+      .then((data) => {
+        if (!cancelled) {
+          setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
+        }
+      })
+      .catch(() => {
+        // Hidden on purpose — see the comment above.
       });
     return () => {
       cancelled = true;
@@ -152,6 +183,61 @@ export default function AdminDashboard() {
     }
   };
 
+  // ----- Admins section handlers (owner-only) --------------------------------
+
+  const addAdmin = async (e) => {
+    e.preventDefault();
+    setAccountsError('');
+    setAddBusy(true);
+    try {
+      const created = await createAdminAccount(newAdminName.trim());
+      setTempReveal({
+        username: created.username,
+        temporaryPassword: created.temporaryPassword,
+      });
+      setCopyNote('');
+      setNewAdminName('');
+      const data = await fetchAdminAccounts();
+      setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
+    } catch (err) {
+      handleError(err, setAccountsError);
+    } finally {
+      setAddBusy(false);
+    }
+  };
+
+  const copyTempPassword = async () => {
+    if (!tempReveal) return;
+    try {
+      await navigator.clipboard.writeText(tempReveal.temporaryPassword);
+      setCopyNote('Copied.');
+    } catch {
+      setCopyNote('Copy failed — select the password and copy it by hand.');
+    }
+  };
+
+  const removeAdmin = async (account) => {
+    // The confirm names the admin, like the product delete does.
+    if (
+      !window.confirm(
+        `Remove admin access for ${account.username}? They will no longer be able to sign in.`
+      )
+    ) {
+      return;
+    }
+    setAccountsError('');
+    setRemoveBusyName(account.username);
+    try {
+      await deleteAdminAccount(account.username);
+      setAccounts((prev) => (prev || []).filter((a) => a.username !== account.username));
+      if (tempReveal && tempReveal.username === account.username) setTempReveal(null);
+    } catch (err) {
+      handleError(err, setAccountsError);
+    } finally {
+      setRemoveBusyName('');
+    }
+  };
+
   return (
     <main className="shell">
       <div className="page-head admin-head">
@@ -181,6 +267,19 @@ export default function AdminDashboard() {
           page) to turn it off.
         </div>
       )}
+
+      <div className="products-head">
+        <h2 className="section-title">Your Password</h2>
+        <Link className="btn" to="/shop/admin/set-password">
+          Change password
+        </Link>
+      </div>
+      <p className="section-sub">
+        Signed in with a stored admin account? Set a new password for
+        it here. (The site-owner sign-in from the Cloudflare settings
+        is changed there instead — the page will tell you if that's
+        yours.)
+      </p>
 
       <div className="admin-stats" aria-label="Overview">
         <div className="hero-stat">
@@ -386,6 +485,114 @@ export default function AdminDashboard() {
             );
           })}
         </div>
+      )}
+
+      {accounts !== null && (
+        <>
+          <h2 className="section-title" style={{ marginTop: 44 }}>
+            Admins
+          </h2>
+          <p className="section-sub">
+            Everyone who can sign in to this admin — owner only: only
+            you ever see this section. Add an admin and she gets her
+            own sign-in and sets her own password; remove one and her
+            sign-in stops working.
+          </p>
+          {accountsError && (
+            <p className="form-error" role="alert">
+              {accountsError}
+            </p>
+          )}
+          {tempReveal && (
+            <div className="notice" role="note">
+              <strong>
+                Temporary password for {tempReveal.username}:{' '}
+                <code>{tempReveal.temporaryPassword}</code>
+              </strong>
+              <br />
+              Copy it now, it will not be shown again. Give it to her
+              directly — she signs in with it once and is asked to set
+              her own password.
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button className="btn-ghost" type="button" onClick={copyTempPassword}>
+                  Copy password
+                </button>
+                <button
+                  className="btn-ghost"
+                  type="button"
+                  onClick={() => setTempReveal(null)}
+                >
+                  Done — I've saved it
+                </button>
+                {copyNote && <span className="ord-meta">{copyNote}</span>}
+              </div>
+            </div>
+          )}
+          <form className="form-card" onSubmit={addAdmin}>
+            <div className="field">
+              <label htmlFor="newAdminUsername">New admin's username</label>
+              <input
+                id="newAdminUsername"
+                type="text"
+                autoComplete="off"
+                value={newAdminName}
+                onChange={(e) => setNewAdminName(e.target.value)}
+                required
+              />
+              <p className="card-sub">
+                Her sign-in name can be her email address — she'll use
+                it as her username; the shop doesn't send email, so
+                give her the temporary password directly.
+              </p>
+            </div>
+            <button className="btn-green" type="submit" disabled={addBusy}>
+              {addBusy ? 'Adding…' : 'Add Admin'}
+            </button>
+          </form>
+          {accounts.length === 0 && (
+            <p className="empty-msg" style={{ marginTop: 18 }}>
+              No stored admin accounts yet — you are signing in with
+              the site's Cloudflare credentials. The first admin you
+              add appears here.
+            </p>
+          )}
+          {accounts.length > 0 && (
+            <div className="orders-list" style={{ marginTop: 18 }}>
+              {accounts.map((account) => (
+                <div className="order-row" key={account.username}>
+                  <div>
+                    <div className="ord-id">
+                      {account.username}{' '}
+                      {account.isOwner && (
+                        <span className="status-pill is-new">Owner</span>
+                      )}
+                    </div>
+                    <div className="ord-meta">
+                      Added{' '}
+                      {new Date(account.createdAt).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </div>
+                  </div>
+                  {!account.isOwner && (
+                    <div>
+                      <button
+                        className="btn-ghost"
+                        type="button"
+                        disabled={removeBusyName === account.username}
+                        onClick={() => removeAdmin(account)}
+                      >
+                        {removeBusyName === account.username ? 'Removing…' : 'Remove'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </main>
   );

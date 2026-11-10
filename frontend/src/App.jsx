@@ -14,6 +14,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AdminLogin from './pages/AdminLogin';
 import AdminForgot from './pages/AdminForgot';
+import AdminSetPassword from './pages/AdminSetPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 
@@ -43,6 +44,7 @@ export default function App() {
                   from the header, footer, or any public page. */}
               <Route path="admin/login" element={<AdminLogin />} />
               <Route path="admin/forgot" element={<AdminForgot />} />
+              <Route path="admin/set-password" element={<AdminSetPassword />} />
               <Route path="admin" element={<AdminDashboard />} />
               <Route path="admin/products" element={<AdminProducts />} />
             </Route>

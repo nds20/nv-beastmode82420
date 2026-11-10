@@ -1,0 +1,29 @@
+-- Shop 824 — multi-admin column for EXISTING databases (2026-11-09).
+--
+-- Admin accounts gain one column:
+--
+--   admin_accounts.must_change  INTEGER NOT NULL DEFAULT 0 — 1 while
+--                   the account still runs on the temporary password
+--                   the owner issued when he added that admin. Login
+--                   reports the flag (mustChangePassword) and the
+--                   change-password endpoint clears it when the
+--                   holder sets her own. Existing accounts gain the
+--                   DEFAULT 0: nobody who already chose a password
+--                   is forced to change it. See docs/ADMINS.md.
+--
+-- Fresh installs get this from cloudflare/schema.sql. This file is
+-- for a database that already exists (the live beastmode82420-db).
+--
+-- NOTE: the application ALSO adds this column lazily at runtime
+-- (ensureAdminColumns() in functions/api/_lib/db.js), so in practice
+-- the live database gains it on the first admin request after this
+-- code deploys even if nobody runs this file. This ALTER is the
+-- documented, inspectable form of the same change — run it once; if
+-- it fails with "duplicate column name", the lazy ensure already
+-- did the work and that is fine.
+--
+-- HOW TO APPLY (from the repo root, Nicholas's Cloudflare login):
+--   npx wrangler d1 execute beastmode82420-db --remote --file=cloudflare/migration-admins.sql
+-- or paste the statement into the D1 console for beastmode82420-db.
+
+ALTER TABLE admin_accounts ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0;

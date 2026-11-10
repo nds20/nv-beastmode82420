@@ -20,6 +20,8 @@
 //       un-offered size -> 400; one-size items carry no size key
 //   (g) a perfume (fragrances + brand + scent, no sizes/type) -> 201
 //   (h) a deodorant (body-care + scent) -> 201
+//   (k) a candle (candles + scent, owner addition 2026-11-09) -> 201
+//       and groups into the Fragrances department
 //   (i) departments: categoryLabel map + groupByDepartment grouping
 //       (the pure helpers Products.jsx renders from)
 //   (j) editing a legacy row WITHOUT the retired keys in the payload
@@ -465,6 +467,19 @@ let hoodie;
   check('(h) deodorant scent round-trips, brand null',
     deo.data.scent === 'Fresh linen' && deo.data.brand === null,
     JSON.stringify({ scent: deo.data.scent, brand: deo.data.brand }));
+
+  // (k) Candle: its own category on the scented-goods shelf (owner
+  // addition 2026-11-09) — scent carries, one-size like the perfume.
+  const candle = await createViaRoute(env, headers, {
+    name: '824 Candle No. 8',
+    category: 'candles',
+    scent: 'Cedar & amber',
+    price: 24,
+  });
+  check('(k) candle create -> 201', candle.status === 201, `status ${candle.status}: ${JSON.stringify(candle.data)}`);
+  check('(k) candle scent round-trips', candle.data.scent === 'Cedar & amber', JSON.stringify(candle.data.scent));
+  check('(k) candle is one-size (sizes [])',
+    Array.isArray(candle.data.sizes) && candle.data.sizes.length === 0);
 }
 
 // =====================================================================================
@@ -475,6 +490,7 @@ let hoodie;
     Object.entries(CATEGORY_LABELS).every(([, label]) => typeof label === 'string' && label.length > 0) &&
     categoryLabel('shirts') === 'Shirts' &&
     categoryLabel('fragrances') === 'Fragrances' &&
+    categoryLabel('candles') === 'Candles' &&
     categoryLabel('body-care') === 'Body Care' &&
     categoryLabel('test-item') === 'Test Item' &&
     categoryLabel('other') === 'Other',
@@ -494,6 +510,10 @@ let hoodie;
   check('(i) within-department order is the input order',
     groups[0].products.map((p) => p.id).join(',') === '1,3',
     JSON.stringify(groups[0].products.map((p) => p.id)));
+  const candleGroup = groupByDepartment([{ id: 11, category: 'candles' }]);
+  check('(i) candles group into the Fragrances department',
+    candleGroup.length === 1 && candleGroup[0].label === 'Fragrances',
+    JSON.stringify(candleGroup.map((g) => g.label)));
   const single = groupByDepartment([{ id: 9, category: 'hats' }]);
   check('(i) single-department catalog groups to exactly one section',
     single.length === 1 && single[0].label === 'Clothes');

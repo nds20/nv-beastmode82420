@@ -8,14 +8,15 @@ import { fail, round2 } from './http.js';
 // in a category filter if its category is one of these ids.
 // Clothing store (owner direction 2026-11-09): Shop 824 sells clothes
 // now, not smoke-shop goods — plus fragrance & body care (perfumes,
-// colognes, deodorant), added by the owner the same evening. The
-// legacy ids (flower / vapes / gummies / pouches / nic-vapes) are
+// colognes, deodorant), added by the owner the same evening.
+// 'candles' joined the scented-goods shelf later that night.
+// The legacy ids (flower / vapes / gummies / pouches / nic-vapes) are
 // retired — the API rejects them. 'test-item' is a first-class
 // category for listings that need nothing beyond a name and a price
 // (the $8.24 nothing item — see docs/CLOTHING.md).
 export const CATEGORIES = [
   'shirts', 'hoodies', 'hats', 'accessories',
-  'fragrances', 'body-care', 'test-item', 'other',
+  'fragrances', 'candles', 'body-care', 'test-item', 'other',
 ];
 
 // Decorative card-gradient defaults for products created without colors.

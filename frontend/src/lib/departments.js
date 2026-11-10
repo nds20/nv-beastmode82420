@@ -15,6 +15,7 @@ export const CATEGORY_LABELS = {
   hats: 'Hats',
   accessories: 'Accessories',
   fragrances: 'Fragrances',
+  candles: 'Candles',
   'body-care': 'Body Care',
   'test-item': 'Test Item',
   other: 'Other',
@@ -33,7 +34,7 @@ export function categoryLabel(category) {
 // browsing mode (no chip selected). Order here is display order.
 export const DEPARTMENTS = [
   { id: 'clothes', label: 'Clothes', categories: ['shirts', 'hoodies', 'hats', 'accessories'] },
-  { id: 'fragrances', label: 'Fragrances', categories: ['fragrances'] },
+  { id: 'fragrances', label: 'Fragrances', categories: ['fragrances', 'candles'] },
   { id: 'body-care', label: 'Body Care', categories: ['body-care'] },
   { id: 'more', label: 'More', categories: ['test-item', 'other'] },
 ];

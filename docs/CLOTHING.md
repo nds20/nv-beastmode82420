@@ -21,6 +21,7 @@ The category carries the kind of product now (the old free-text
 | `hats`       | Hats         | Clothes     |
 | `accessories`| Accessories  | Clothes     |
 | `fragrances` | Fragrances   | Fragrances  |
+| `candles`    | Candles      | Fragrances  |
 | `body-care`  | Body Care    | Body Care   |
 | `test-item`  | Test Item    | More        |
 | `other`      | Other        | More        |
@@ -43,10 +44,10 @@ headings, editor select and product pages can never drift apart.
   blanks and duplicates dropped. **Empty = one-size / not
   applicable** (hats, fragrances, the test item).
 - **scent** — optional free-text scent / fragrance notes
-  (≤ 120 chars), e.g. `Sandalwood & vanilla`. For perfumes, colognes
-  and deodorant; shown on the card and detail page as
-  "Scent: …". Fragrance and body-care items are one-size by nature —
-  leave their sizes blank.
+  (≤ 120 chars), e.g. `Sandalwood & vanilla`. For perfumes, colognes,
+  candles and deodorant; shown on the card and detail page as
+  "Scent: …". Fragrance, candle and body-care items are one-size by
+  nature — leave their sizes blank.
 - **type** — optional free-text style note ("Classic fit",
   "Graphic", …). Never required; the category is the kind now.
 - subtitle, tile colors, photo, weight/dims, the Shipping checkbox,

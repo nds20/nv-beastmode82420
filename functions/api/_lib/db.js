@@ -38,6 +38,10 @@
 //                   for this order — see _lib/inventory.js).
 //   admin_accounts  username (case-insensitive PK), salt, hash, created_at
 //                   — passwords only ever as PBKDF2 hashes (see auth.js).
+//                   Multi-admin (2026-11-09) adds `must_change`
+//                   (INTEGER NOT NULL DEFAULT 0): 1 on an account the
+//                   owner created with a temporary password, cleared
+//                   when the holder picks her own (see docs/ADMINS.md).
 //   customers       shopper accounts: incrementing id, name, unique
 //                   case-insensitive email, PBKDF2 salt/hash, created_at.
 //                   Never seeded — the first registration is customer 1.
@@ -53,6 +57,7 @@ import {
   verifyPassword,
   hashPassword,
   base64Encode,
+  adminCredentials,
 } from './auth.js';
 
 function parseJsonColumn(value, fallback) {
@@ -218,6 +223,52 @@ export function ensureClothingColumns(env) {
     });
   }
   return clothingColumnsPromise;
+}
+
+// ----- Admin columns (lazy ensure) --------------------------------------------
+//
+// Same lazy pattern as the product ensures above (multi-admin support,
+// owner direction 2026-11-09: a second admin gets her own sign-in).
+// admin_accounts gains:
+//   must_change  INTEGER NOT NULL DEFAULT 0 — 1 while the account
+//                still runs on the owner-issued TEMPORARY password;
+//                login reports it (mustChangePassword) and the
+//                change-password endpoint clears it when the holder
+//                sets her own. Existing rows read 0 — nobody who
+//                already has a password is forced to change it.
+// cloudflare/schema.sql carries the column for fresh installs and
+// cloudflare/migration-admins.sql documents the same ALTER.
+
+const ADMIN_COLUMNS = {
+  admin_accounts: [
+    ['must_change', 'INTEGER NOT NULL DEFAULT 0'],
+  ],
+};
+
+let adminColumnsPromise = null;
+
+export function ensureAdminColumns(env) {
+  if (!adminColumnsPromise) {
+    adminColumnsPromise = (async () => {
+      for (const [table, columns] of Object.entries(ADMIN_COLUMNS)) {
+        // eslint-disable-next-line no-await-in-loop
+        const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+        const existing = new Set((results || []).map((row) => row.name));
+        for (const [name, type] of columns) {
+          if (!existing.has(name)) {
+            // eslint-disable-next-line no-await-in-loop
+            await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run();
+          }
+        }
+      }
+      return true;
+    })().catch((err) => {
+      // Same retry rule as the other ensures: never poison the isolate.
+      adminColumnsPromise = null;
+      throw err;
+    });
+  }
+  return adminColumnsPromise;
 }
 
 // ----- Products ---------------------------------------------------------------
@@ -612,23 +663,31 @@ export async function hasAccounts(env) {
 export async function findAccount(env, username) {
   const wanted = String(username || '').trim();
   if (!wanted) return null;
+  await ensureAdminColumns(env);
   // The username column is COLLATE NOCASE, so this match is case-insensitive
   // exactly like the Node accounts store's find().
   return env.DB.prepare(
-    'SELECT username, salt, hash, created_at FROM admin_accounts WHERE username = ?'
+    'SELECT username, salt, hash, created_at, must_change FROM admin_accounts WHERE username = ?'
   )
     .bind(wanted)
     .first();
 }
 
-export async function createAccount(env, username, password) {
+/**
+ * Create a stored admin account. `mustChange` (default 0) stamps the
+ * forced-first-change flag: the owner creating a co-admin passes 1
+ * (she still runs on his temporary password); first-run setup and
+ * recovery pass 0 — those holders chose the password themselves.
+ */
+export async function createAccount(env, username, password, { mustChange = 0 } = {}) {
   const name = String(username || '').trim();
   const { salt, hash } = await newPasswordRecord(password);
   const createdAt = new Date().toISOString();
+  await ensureAdminColumns(env);
   await env.DB.prepare(
-    'INSERT INTO admin_accounts (username, salt, hash, created_at) VALUES (?, ?, ?, ?)'
+    'INSERT INTO admin_accounts (username, salt, hash, created_at, must_change) VALUES (?, ?, ?, ?, ?)'
   )
-    .bind(name, salt, hash, createdAt)
+    .bind(name, salt, hash, createdAt, mustChange ? 1 : 0)
     .run();
   return { username: name, createdAt };
 }
@@ -646,9 +705,15 @@ export async function upsertAdminAccount(env, username, password) {
   const existing = await findAccount(env, name);
   const { salt, hash } = await newPasswordRecord(password);
   const createdAt = new Date().toISOString();
+  await ensureAdminColumns(env);
+  // must_change is written 0 on BOTH branches: whoever lands here —
+  // the owner recovering his own sign-in, or an admin completing the
+  // change-password flow — has just chosen this password themselves,
+  // so no forced change follows. (A temporary password only ever
+  // enters through createAccount with mustChange: 1.)
   await env.DB.prepare(
-    `INSERT INTO admin_accounts (username, salt, hash, created_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT(username) DO UPDATE SET salt = excluded.salt, hash = excluded.hash`
+    `INSERT INTO admin_accounts (username, salt, hash, created_at, must_change) VALUES (?, ?, ?, ?, 0)
+     ON CONFLICT(username) DO UPDATE SET salt = excluded.salt, hash = excluded.hash, must_change = 0`
   )
     .bind(name, salt, hash, createdAt)
     .run();
@@ -670,6 +735,68 @@ export async function verifyAccount(env, username, password) {
     return false;
   }
   return verifyPassword(password || '', account.salt, account.hash);
+}
+
+// ----- Admin management (multi-admin, 2026-11-09) ------------------------------
+//
+// THE OWNER RULE. Admin-management endpoints (list / add / remove
+// admins) are gated to owner-level identities, and owner-level means
+// exactly one of:
+//   (a) the username matches the env credentials
+//       (BEASTMODE_ADMIN_USER, case-insensitive) — the owner's
+//       primary sign-in, which lives in Cloudflare, not in this
+//       table; or
+//   (b) the username is the EARLIEST-created stored account
+//       (MIN(created_at)) — the owner's own stored account, created
+//       via first-run setup or password recovery. Without (b) he
+//       would lock himself out of managing admins the moment he
+//       signs in with the stored account instead of the env one.
+// Every other admin (accounts the owner added later) is a regular
+// admin: full product/order powers, no admin management. The rule is
+// documented for the owner in docs/ADMINS.md.
+
+/**
+ * All stored admin accounts, oldest first: [{ username, createdAt }].
+ * The ORDER is load-bearing — index 0 is the earliest account, which
+ * the owner rule above treats as owner-level. created_at values are
+ * ISO strings, so they sort lexicographically; username breaks ties
+ * deterministically (the PK is COLLATE NOCASE, so ORDER BY username
+ * is case-insensitive too). Salt/hash are never selected here.
+ */
+export async function listAdminAccounts(env) {
+  await ensureAdminColumns(env);
+  const { results } = await env.DB.prepare(
+    'SELECT username, created_at FROM admin_accounts ORDER BY created_at ASC, username ASC'
+  ).all();
+  return (results || []).map((row) => ({ username: row.username, createdAt: row.created_at }));
+}
+
+/**
+ * True when `username` is an owner-level identity per the rule above:
+ * the env BEASTMODE_ADMIN_USER, or the earliest stored account.
+ * Case-insensitive throughout (the table PK is COLLATE NOCASE and a
+ * sign-in may be typed in any case).
+ */
+export async function isOwnerIdentity(env, username) {
+  const name = String(username || '').trim();
+  if (!name) return false;
+  const { user } = adminCredentials(env);
+  if (user && name.toLowerCase() === String(user).trim().toLowerCase()) return true;
+  const accounts = await listAdminAccounts(env);
+  return (
+    accounts.length > 0 && accounts[0].username.toLowerCase() === name.toLowerCase()
+  );
+}
+
+/** Remove a stored admin account. Returns true when a row was deleted. */
+export async function deleteAdminAccount(env, username) {
+  const name = String(username || '').trim();
+  if (!name) return false;
+  await ensureAdminColumns(env);
+  const result = await env.DB.prepare('DELETE FROM admin_accounts WHERE username = ?')
+    .bind(name)
+    .run();
+  return result.meta.changes > 0;
 }
 
 // ----- Customers ------------------------------------------------------------------

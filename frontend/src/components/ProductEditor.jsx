@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { saveAdminProduct } from '../services/adminApi';
 import { CATEGORY_LABELS, categoryLabel } from '../lib/departments';
+import { MAX_PHOTO_BYTES, photoFailureMessage } from '../lib/photoPrep';
 
 // Admin product editor — the Add/Edit form on the dedicated
 // Products page (/shop/admin/products), which the admin dashboard
@@ -143,10 +144,18 @@ export default function ProductEditor({
         // Fields landed; only the photo step failed. Adopt the saved
         // product so the next Save edits it instead of duplicating,
         // and keep the chosen file so that Save retries the photo.
+        // The lead sentence says what actually happened to the photo
+        // (photoFailureMessage: the server's own words when it sent
+        // any; the HEIC / too-large / dropped-connection truth when
+        // it didn't) — never a bare "server could not be reached"
+        // when a more specific truth exists.
         setForm(initialForm(err.savedProduct));
         if (onPartialSave) onPartialSave(err.savedProduct);
+        const lead = err.photoFailure
+          ? photoFailureMessage({ ...err.photoFailure, maxBytes: MAX_PHOTO_BYTES })
+          : err.message;
         setError(
-          `${err.message} The product details were saved — fix the photo ` +
+          `${lead} The product details were saved — fix the photo ` +
             'problem and press Save again to attach the photo.'
         );
       } else {
@@ -313,7 +322,8 @@ export default function ProductEditor({
           }
         />
         <p className="hint">
-          Optional. JPG, PNG, WebP, GIF or SVG, up to 10 MB.
+          Optional. JPG, PNG, WebP, GIF or SVG, up to 10 MB. Phone photos
+          are converted and shrunk automatically before upload.
           {editing ? ' Choosing a file replaces the current photo when you save.' : ''}
         </p>
       </div>

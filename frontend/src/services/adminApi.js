@@ -11,6 +11,15 @@
 // attached) so pages can show exactly what the server said — e.g.
 // "Invalid credentials" on a failed sign-in — and can treat a 401 as
 // "session over: clear the token and go back to the login page."
+// Failures where the server never got a usable word in carry a
+// .code instead: 'network' (fetch itself threw — the request or the
+// response never completed) or 'bad-response' (something answered
+// with a body that is not the API's JSON, e.g. an edge error page).
+// Callers that can say something more specific than
+// UNAVAILABLE_MESSAGE key off the code (the product photo step does;
+// see lib/photoPrep.js photoFailureMessage).
+
+import { preparePhotoForUpload } from '../lib/photoPrep';
 
 const TOKEN_KEY = 'beastmode_admin_token';
 const AUTH_SOURCE_KEY = 'beastmode_admin_auth_source';
@@ -88,13 +97,19 @@ async function adminFetch(path, options = {}, { authed = true } = {}) {
   try {
     response = await fetch(path, { ...options, headers });
   } catch {
-    throw new Error(UNAVAILABLE_MESSAGE);
+    const err = new Error(UNAVAILABLE_MESSAGE);
+    err.code = 'network';
+    throw err;
   }
   const data = await response.json().catch(() => null);
   if (data === null) {
     // Something answered, but not the API — e.g. static hosting
-    // returning the app's index.html for an unknown path.
-    throw new Error(UNAVAILABLE_MESSAGE);
+    // returning the app's index.html for an unknown path, or an edge
+    // error page. Distinct from a network failure: the code lets
+    // callers say so truthfully instead of blaming the connection.
+    const err = new Error(UNAVAILABLE_MESSAGE);
+    err.code = 'bad-response';
+    throw err;
   }
   if (!response.ok) {
     // A 401 on an authenticated call means the token is gone or
@@ -310,7 +325,21 @@ export async function fetchAdminProducts() {
 // the server answers a clear 400), the error is rethrown with
 // `err.savedProduct` attached: the product itself IS saved, and the
 // editor adopts it as an edit form so pressing Save again retries the
-// photo instead of creating a duplicate.
+// photo instead of creating a duplicate. The error also carries
+// `err.photoFailure` — what actually went wrong, for the editor's
+// friendly message (lib/photoPrep.js photoFailureMessage): the
+// server's own message when it sent one, the adminFetch .code
+// ('network' / 'bad-response') when it didn't, whether the original
+// was an HEIC the browser could not convert, and the size of the
+// file that was actually uploaded.
+//
+// Before step 2, the photo is prepared in the browser
+// (lib/photoPrep.js): downscaled to <= 1600 px and re-encoded as
+// JPEG. Phone cameras shoot HEIC at several MB — the server only
+// takes jpg/png/webp/gif/svg up to 10 MB, and a multi-MB upload on
+// cellular can drop mid-flight (the 2026-11-10 failure this prep
+// fixes). Prep never throws and never blocks: a photo it cannot
+// process uploads as the original file, exactly as before.
 
 /** '' / whitespace -> null (clears the field); anything else trimmed. */
 function blankToNull(value) {
@@ -374,8 +403,10 @@ export async function saveAdminProduct(form, photoFile) {
 
   if (!photoFile) return saved;
 
+  const prep = await preparePhotoForUpload(photoFile);
+  const uploadFile = prep.uploadFile || photoFile;
   const fd = new FormData();
-  fd.append('photo', photoFile);
+  fd.append('photo', uploadFile);
   try {
     return await adminFetch(`/api/products/${saved.id}`, {
       method: 'PUT',
@@ -383,6 +414,15 @@ export async function saveAdminProduct(form, photoFile) {
     });
   } catch (err) {
     err.savedProduct = saved;
+    err.photoFailure = {
+      // A .status means the server answered with its own JSON error —
+      // that message is the truth and surfaces verbatim. The coded
+      // failures (network / bad-response) have no server message.
+      serverMessage: err.status ? err.message : '',
+      code: err.code || '',
+      heicUnconverted: Boolean(prep.heicUnconverted),
+      uploadBytes: Number(uploadFile.size || 0),
+    };
     throw err;
   }
 }

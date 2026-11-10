@@ -121,6 +121,60 @@ attached, the editor adopts the saved product as an edit form and
 keeps the chosen file, so pressing Save again retries the photo
 instead of creating a duplicate.
 
+## Phone photos
+
+Added 2026-11-10 after a live failure: the owner attached a photo
+snapped on his iPhone, the details saved, and the photo step died
+with a bare "The admin server could not be reached". Two things
+were wrong: iPhone camera photos are usually **HEIC** (which the
+server's extension list rejects) and **several MB** (a multi-MB
+upload on cellular can drop mid-flight, before any server message
+exists).
+
+The fix is client-side, in `frontend/src/lib/photoPrep.js`
+(`preparePhotoForUpload`, called by `saveAdminProduct` before
+step 2):
+
+- The chosen photo is decoded in the browser, drawn to a canvas
+  scaled so the **longest side is at most 1600 px** (never
+  upscaled), and re-encoded as **JPEG at quality 0.85**, uploaded
+  as `<name>.jpg`. Safari decodes HEIC natively, so the conversion
+  is free exactly on the phones that shoot HEIC; a 5 MB camera shot
+  lands as a few hundred KB that sails under the server's 10 MB
+  cap. Transparency flattens onto white (JPEG has no alpha).
+  Orientation uses `createImageBitmap` with
+  `imageOrientation: 'from-image'` where the platform offers it;
+  the fallback decode paths rely on the decoder's own EXIF
+  handling.
+- **Prep only when it helps.** SVG and GIF pass through untouched;
+  files at or under 1 MB pass through untouched; a re-encode that
+  comes out larger than the original is discarded (the one
+  exception is HEIC, whose re-encode is kept at any size — the
+  server rejects the `.heic` extension outright, so conversion is
+  the only path).
+- **The fallback rule: prep never fails an upload.** It never
+  throws; any decode/canvas/encode problem returns the original
+  file and the upload proceeds exactly as it did before this
+  existed.
+- **Friendly failures.** `adminFetch` now tags the failures where
+  the server never got a usable word in with a `.code` (`network`
+  when fetch itself threw, `bad-response` when the answer wasn't
+  the API's JSON), and `saveAdminProduct` attaches an
+  `err.photoFailure` summary to the rethrown error.
+  `photoFailureMessage` (same module) turns it into the editor's
+  lead sentence: the server's own JSON error still surfaces
+  verbatim; an HEIC the browser couldn't convert gets the
+  pick-again / export-as-JPEG / "Most Compatible" guidance; a file
+  still over 10 MB after shrinking is named as too large; a dropped
+  connection says the photo upload didn't go through — all above
+  the standing "details were saved, press Save again" suffix.
+
+Tests: `node scripts/test-photo-prep.mjs` — the pure helpers
+(HEIC detection, prep gating, dimension math, filename mapping,
+message mapping) plus the guarantee that prep resolves to the
+original file where no decoder exists. The canvas path itself is
+browser-only and covered by bundle inspection instead.
+
 ## Delete policy
 
 Delete asks for confirmation naming the product, calls

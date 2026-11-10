@@ -11,7 +11,9 @@
 //      the page. The buttons below are real HTML links.
 //   2. The keystone feature block — Friends With Benefits, the
 //      flagship product, spotlit in a black feature card directly
-//      under the hero (owner direction 2026-11-05).
+//      under the hero (owner direction 2026-11-05; the card now
+//      also carries its NV Social Network umbrella line, owner
+//      direction 2026-11-10).
 //   3. The pill link row — real pill buttons centered under the
 //      feature block, styled to match the artwork (gold outline,
 //      black fill, gold text). In the owner's order.
@@ -311,7 +313,7 @@ export default function Hub() {
 
       <section className="hub-feature" aria-labelledby="fwb-feature">
         <div className="hub-feature-card">
-          <p className="hub-feature-eyebrow">The Keystone of 824</p>
+          <p className="hub-feature-eyebrow">The Keystone of 824 · NV Social Network</p>
           <h2 className="hub-feature-name" id="fwb-feature">
             Friends With Benefits
           </h2>
@@ -329,6 +331,10 @@ export default function Hub() {
           <p className="hub-feature-meta">
             Live now — launched November 2026 · Coming soon to the App Store &amp;
             Google Play
+          </p>
+          <p className="hub-feature-meta">
+            Part of the NV Social Network — the social umbrella of 824&apos;s
+            Entertainment Division.
           </p>
         </div>
       </section>
@@ -365,6 +371,9 @@ export default function Hub() {
           and community, video, and photo sharing together in one place. Built on
           React and Cloudflare, protected by 824 Shield, and launched in November
           2026 — with apps for the App Store and Google Play in progress.
+          Friends With Benefits is the first member of the NV Social Network —
+          the social umbrella of 824&apos;s new Entertainment Division, where
+          824&apos;s social products live under one roof.
         </p>
         <p>
           We build AI that earns its keep: 824 Shield, our AI-driven defense system;

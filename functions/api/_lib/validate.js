@@ -6,7 +6,17 @@ import { fail, round2 } from './http.js';
 
 // The storefront's filter list (ProductsPage.jsx) — a product only shows up
 // in a category filter if its category is one of these ids.
-export const CATEGORIES = ['flower', 'vapes', 'gummies', 'pouches', 'nic-vapes'];
+// Clothing store (owner direction 2026-11-09): Shop 824 sells clothes
+// now, not smoke-shop goods — plus fragrance & body care (perfumes,
+// colognes, deodorant), added by the owner the same evening. The
+// legacy ids (flower / vapes / gummies / pouches / nic-vapes) are
+// retired — the API rejects them. 'test-item' is a first-class
+// category for listings that need nothing beyond a name and a price
+// (the $8.24 nothing item — see docs/CLOTHING.md).
+export const CATEGORIES = [
+  'shirts', 'hoodies', 'hats', 'accessories',
+  'fragrances', 'body-care', 'test-item', 'other',
+];
 
 // Decorative card-gradient defaults for products created without colors.
 // (UI chrome, not product data.)
@@ -76,6 +86,61 @@ function parseEffects(value) {
   return [];
 }
 
+// Clothing fields (2026-11-09): brand is an optional label string;
+// sizes is the product's size run. Both are forgiving at the edges —
+// the caps below NORMALIZE (extra entries / over-long entries are
+// dropped) rather than 400, because a size list is display data the
+// admin typed by hand, not money or stock. The result is stored as a
+// JSON array by db.js; an empty result means one-size / not
+// applicable.
+export const MAX_BRAND_LENGTH = 80;
+export const MAX_SIZES = 12;
+export const MAX_SIZE_LENGTH = 12;
+
+function parseBrand(value) {
+  if (value === undefined || value === null) return null;
+  const brand = String(value).trim().slice(0, MAX_BRAND_LENGTH);
+  return brand === '' ? null : brand;
+}
+
+function parseSizes(value) {
+  let list = [];
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    // Multipart forms send the array JSON-encoded (same convention
+    // as effects — see parseEffects).
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) list = parsed;
+    } catch { /* fall through to comma-split */ }
+  }
+  if (list.length === 0) {
+    if (Array.isArray(value)) list = value;
+    else if (typeof value === 'string') list = value.split(',');
+    else return [];
+  }
+  const seen = new Set();
+  const out = [];
+  for (const entry of list) {
+    const size = String(entry).trim().slice(0, MAX_SIZE_LENGTH);
+    if (!size || seen.has(size)) continue;
+    seen.add(size);
+    out.push(size);
+    if (out.length >= MAX_SIZES) break;
+  }
+  return out;
+}
+
+// Scent (fragrance & body care, 2026-11-09): an optional free-text
+// note ("sandalwood & vanilla"). Trim + cap, never required, null
+// when blank — same treatment as brand.
+export const MAX_SCENT_LENGTH = 120;
+
+function parseScent(value) {
+  if (value === undefined || value === null) return null;
+  const scent = String(value).trim().slice(0, MAX_SCENT_LENGTH);
+  return scent === '' ? null : scent;
+}
+
 function parseTile(value) {
   let tile = value;
   if (typeof tile === 'string') {
@@ -93,8 +158,17 @@ function parseTile(value) {
 /**
  * Normalize + validate a product coming from the admin form (multipart
  * fields arrive as strings; JSON bodies arrive typed — both are handled
- * here). Data honesty rule: price and THC stay null ("TBD") when the admin
- * leaves them empty. Nothing is invented for them.
+ * here). Data honesty rule: price stays null ("TBD") when the admin
+ * leaves it empty. Nothing is invented for it.
+ *
+ * Clothing model (2026-11-09): the product kind is the CATEGORY now;
+ * `type` is an optional free-text style note and is never required —
+ * a 'test-item' needs nothing beyond name + price. Brand, sizes and
+ * scent are the clothing/fragrance fields. The retired smoke-shop
+ * fields (thc, strength, effects, unit) are still ACCEPTED and stored
+ * when explicitly sent — old rows and old clients keep working — but
+ * validation never requires them and never derives one from another
+ * (the old "strength = <thc>% THC" invention is gone).
  */
 export function normalizeProduct(body, existing) {
   const base = existing || {};
@@ -108,10 +182,9 @@ export function normalizeProduct(body, existing) {
     fail(400, `category must be one of: ${CATEGORIES.join(', ')}`);
   }
 
+  // Optional since the clothing conversion: the category carries the
+  // kind. Stored as '' when absent (the column is NOT NULL).
   const type = String(pick('type') || '').trim();
-  if (!type) {
-    fail(400, 'type is required (e.g. Hybrid, Indica, Sativa, Nicotine, Flower)');
-  }
 
   const price = parseOptionalNumber(pick('price'), 'price');
   if (price !== null && price < 0) fail(400, 'price must be zero or greater');
@@ -119,11 +192,10 @@ export function normalizeProduct(body, existing) {
   const thc = parseOptionalNumber(pick('thc'), 'thc');
   if (thc !== null && (thc < 0 || thc > 100)) fail(400, 'thc must be between 0 and 100');
 
-  // Display strength: explicit admin label wins; otherwise derive it from
-  // the THC value the admin actually entered; otherwise it stays "THC TBD".
-  const strengthInput = pick('strength');
-  const strength = String(strengthInput || '').trim()
-    || (thc !== null ? `${thc}% THC` : 'THC TBD');
+  // Retired-field pass-through: an explicit strength label is kept
+  // exactly as sent; nothing is derived from thc any more, and an
+  // unset strength is just ''.
+  const strength = String(pick('strength') || '').trim();
 
   const unitInput = pick('unit');
   const unit = unitInput === undefined || unitInput === null || String(unitInput).trim() === ''
@@ -149,6 +221,9 @@ export function normalizeProduct(body, existing) {
     stockQty: parseStockInteger(pick('stockQty'), 'stockQty', MAX_STOCK_QTY),
     lowStockThreshold: parseStockInteger(pick('lowStockThreshold'), 'lowStockThreshold', MAX_STOCK_QTY),
     freeShipping: parseFreeShipping(pick('freeShipping')),
+    brand: parseBrand(pick('brand')),
+    sizes: parseSizes(pick('sizes')),
+    scent: parseScent(pick('scent')),
   };
 }
 
@@ -199,6 +274,23 @@ export async function normalizeOrder(body, getProductById, quoteShippingFn) {
     if (product.stockQty !== null && product.stockQty !== undefined && qty > product.stockQty) {
       fail(400, `"${product.name}" only has ${product.stockQty} left.`);
     }
+    // Clothing sizes (2026-11-09): when the product HAS a size run,
+    // the buyer's chosen size is snapshotted onto the order item so
+    // the shop knows which size to pull. A size the product does not
+    // offer is a 400 — the client cannot invent one. Products with
+    // no size run ignore any sent size (one-size items). Stock stays
+    // per-PRODUCT across sizes (see docs/CLOTHING.md).
+    const productSizes = Array.isArray(product.sizes) ? product.sizes : [];
+    let size = null;
+    if (productSizes.length > 0) {
+      const wanted = raw && raw.size != null ? String(raw.size).trim() : '';
+      if (wanted) {
+        if (!productSizes.includes(wanted)) {
+          fail(400, `"${product.name}" is not offered in size "${wanted}".`);
+        }
+        size = wanted;
+      }
+    }
     const unitPrice = round2(product.price);
     items.push({
       productId: product.id,
@@ -206,6 +298,7 @@ export async function normalizeOrder(body, getProductById, quoteShippingFn) {
       qty,
       unitPrice,
       lineTotal: round2(unitPrice * qty),
+      ...(size ? { size } : {}),
     });
     entries.push({ product, qty });
   }

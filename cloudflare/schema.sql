@@ -57,7 +57,15 @@ CREATE TABLE IF NOT EXISTS products (
   -- package math entirely (see _lib/shipping.js).
   stock_qty           INTEGER,
   low_stock_threshold INTEGER,
-  free_shipping       INTEGER NOT NULL DEFAULT 0
+  free_shipping       INTEGER NOT NULL DEFAULT 0,
+  -- Clothing + fragrance & body care (2026-11-09): brand NULL = no
+  -- brand; sizes is a JSON array of size strings, NULL = one-size /
+  -- not applicable; scent NULL = no scent note. See docs/CLOTHING.md.
+  -- (thc/strength/unit/effects above are legacy smoke-shop columns,
+  -- kept for history; the clothing model no longer uses them.)
+  brand TEXT,
+  sizes TEXT,
+  scent TEXT
 );
 
 CREATE TABLE IF NOT EXISTS orders (

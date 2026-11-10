@@ -4,14 +4,20 @@ import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { priceLabel } from '../components/ProductCard';
 import { isSoldOut, isLowStock, qtyCapFor } from '../context/CartContext';
+import { categoryLabel } from '../lib/departments';
 
 // Product detail — route "/shop/product/:id".
+// Clothing (2026-11-09): when the product has a size run, a size
+// picker renders and Add to Cart stays disabled until a size is
+// chosen ("Pick a size"); the chosen size rides the cart line into
+// the order. One-size products (empty sizes) add exactly as before.
 export default function ProductDetail() {
   const { id } = useParams();
   const { getProduct, loading } = useProducts();
   const { addToCart } = useCart();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [size, setSize] = useState(null);
 
   const product = getProduct(id);
 
@@ -33,10 +39,13 @@ export default function ProductDetail() {
   const soldOut = isSoldOut(product);
   const lowStock = isLowStock(product);
   const qtyCap = qtyCapFor(product);
+  const sizes = Array.isArray(product.sizes) ? product.sizes : [];
+  const needsSize = sizes.length > 0;
+  const addDisabled = soldOut || (needsSize && !size);
 
   const onAdd = () => {
-    if (soldOut) return;
-    addToCart(product, qty);
+    if (addDisabled) return;
+    addToCart(product, qty, size);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1200);
   };
@@ -57,34 +66,55 @@ export default function ProductDetail() {
           </div>
         </section>
         <section>
-          <span className="pd-type">{product.type}</span>
+          {product.type ? <span className="pd-type">{product.type}</span> : null}
           <h1 className="pd-name">{product.name}</h1>
           <p className="pd-subtitle">{product.subtitle}</p>
           <div className="pd-specs">
-            <div className="pd-spec">
-              <span className="pd-label">Strength</span>
-              <span className="pd-value">{product.strength}</span>
-            </div>
-            {product.unit && (
+            {product.brand && (
               <div className="pd-spec">
-                <span className="pd-label">Unit Size</span>
-                <span className="pd-value">{product.unit}</span>
+                <span className="pd-label">Brand</span>
+                <span className="pd-value">{product.brand}</span>
+              </div>
+            )}
+            {product.scent && (
+              <div className="pd-spec">
+                <span className="pd-label">Scent</span>
+                <span className="pd-value">{product.scent}</span>
+              </div>
+            )}
+            {product.type && (
+              <div className="pd-spec">
+                <span className="pd-label">Type</span>
+                <span className="pd-value">{product.type}</span>
               </div>
             )}
             <div className="pd-spec">
-              <span className="pd-label">Type</span>
-              <span className="pd-value">{product.type}</span>
-            </div>
-            <div className="pd-spec">
               <span className="pd-label">Category</span>
-              <span className="pd-value">
-                {product.category === 'nic-vapes' ? 'Nicotine Vapes' : product.category}
-              </span>
+              <span className="pd-value">{categoryLabel(product.category)}</span>
             </div>
           </div>
           <div className={`pd-price${tbd ? ' tbd' : ''}`}>{priceLabel(product)}</div>
           {soldOut && <p className="stock-note">Sold out</p>}
           {lowStock && <p className="stock-note">Only {product.stockQty} left</p>}
+          {needsSize && (
+            <div className="pd-sizes">
+              <span className="pd-label">Size</span>
+              <div className="size-picker" role="group" aria-label="Choose a size">
+                {sizes.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`size-btn${size === s ? ' selected' : ''}`}
+                    aria-pressed={size === s}
+                    onClick={() => setSize(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {!size && <p className="form-error">Pick a size</p>}
+            </div>
+          )}
           <div className="pd-qty">
             <label htmlFor="pdQtyVal">Quantity:</label>
             <div className="qty-control">
@@ -111,7 +141,7 @@ export default function ProductDetail() {
             className={`btn pd-add${added ? ' added' : ''}`}
             onClick={onAdd}
             type="button"
-            disabled={soldOut}
+            disabled={addDisabled}
           >
             {soldOut ? 'Sold Out' : added ? 'Added to Cart ✓' : 'Add to Cart'}
           </button>

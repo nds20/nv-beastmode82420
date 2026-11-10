@@ -29,6 +29,15 @@ export const isLowStock = (item) =>
       ? item.lowStockThreshold
       : LOW_STOCK_THRESHOLD);
 
+// Clothing sizes (2026-11-09): a cart LINE is one product in one
+// size — the same hoodie in M and L is two lines. Line identity is
+// therefore (id + size); a size-less line uses ''. Stock is tracked
+// per PRODUCT, not per size, so qtyCapFor caps the TOTAL quantity
+// across all of a product's size lines (enforced in addToCart /
+// updateQty below by netting out the other lines).
+export const lineKey = (item) => `${item.id}::${item.size || ''}`;
+export const sameLine = (a, b) => a.id === b.id && (a.size || '') === (b.size || '');
+
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 export const isTbd = (item) => item.price === null || item.price === undefined;
 
@@ -51,35 +60,59 @@ export const CartProvider = ({ children }) => {
     }
   }, [items]);
 
-  const addToCart = useCallback((product, qty = 1) => {
+  // addToCart(product, qty, size): size is the buyer's chosen size
+  // for sized clothing (ProductDetail's picker); it becomes part of
+  // the line's identity and rides into the order payload. The cap is
+  // the product TOTAL across its size lines: what's already in the
+  // cart for this product nets out of what's left to add.
+  const addToCart = useCallback((product, qty = 1, size = null) => {
     if (isSoldOut(product)) return; // sold-out items can't enter the cart
+    const lineSize = size ? String(size) : null;
     setItems((prevItems) => {
       const cap = qtyCapFor(product);
-      const existing = prevItems.find((i) => i.id === product.id);
+      const inCart = prevItems
+        .filter((i) => i.id === product.id)
+        .reduce((sum, i) => sum + i.qty, 0);
+      const room = Math.max(0, cap - inCart);
+      if (room === 0) return prevItems;
+      const addQty = Math.min(room, Math.max(1, qty));
+      const existing = prevItems.find((i) => i.id === product.id && (i.size || null) === lineSize);
       if (existing) {
         return prevItems.map((i) =>
-          i.id === product.id ? { ...i, qty: Math.min(cap, i.qty + qty) } : i
+          i === existing ? { ...i, qty: i.qty + addQty } : i
         );
       }
-      return [...prevItems, { ...product, qty: Math.min(cap, Math.max(1, qty)) }];
+      return [...prevItems, { ...product, size: lineSize, qty: addQty }];
     });
   }, []);
 
-  const removeFromCart = useCallback((productId) => {
-    setItems((prevItems) => prevItems.filter((i) => i.id !== productId));
+  const removeFromCart = useCallback((productId, size = null) => {
+    setItems((prevItems) =>
+      prevItems.filter((i) => !(i.id === productId && (i.size || null) === (size || null)))
+    );
   }, []);
 
   const updateQty = useCallback(
-    (productId, qty) => {
+    (productId, qty, size = null) => {
       if (qty <= 0) {
-        removeFromCart(productId);
+        removeFromCart(productId, size);
         return;
       }
-      setItems((prevItems) =>
-        prevItems.map((i) =>
-          i.id === productId ? { ...i, qty: Math.min(qtyCapFor(i), Math.max(1, qty)) } : i
-        )
-      );
+      setItems((prevItems) => {
+        const line = prevItems.find(
+          (i) => i.id === productId && (i.size || null) === (size || null)
+        );
+        if (!line) return prevItems;
+        // Per-product total cap: this line may grow only into what
+        // the product's other size lines leave of the cap.
+        const othersQty = prevItems
+          .filter((i) => i.id === productId && i !== line)
+          .reduce((sum, i) => sum + i.qty, 0);
+        const maxForLine = Math.max(1, qtyCapFor(line) - othersQty);
+        return prevItems.map((i) =>
+          i === line ? { ...i, qty: Math.min(maxForLine, Math.max(1, qty)) } : i
+        );
+      });
     },
     [removeFromCart]
   );

@@ -63,7 +63,7 @@ function check(name, cond, extra = '') {
 const PRODUCT_COLS = [
   'id', 'name', 'subtitle', 'category', 'type', 'thc', 'strength', 'price',
   'unit', 'effects', 'tile', 'image', 'weight_oz', 'length_in', 'width_in', 'height_in',
-  'stock_qty', 'low_stock_threshold', 'free_shipping',
+  'stock_qty', 'low_stock_threshold', 'free_shipping', 'brand', 'sizes', 'scent',
 ];
 const ORDER_COLS = [
   'id', 'items', 'subtotal', 'tax', 'total', 'customer', 'payment', 'status',
@@ -267,7 +267,7 @@ const PNG_BYTES = new Uint8Array([
   const body = {
     name: '⚠️ TEST ITEM — YOU WILL NOT RECEIVE ANYTHING ⚠️',
     subtitle: '⚠️ YOU WILL NOT RECEIVE ANYTHING — test listing only ⚠️',
-    category: 'flower',
+    category: 'test-item',
     type: 'Test Item',
     price: 8.24,
     thc: null,
@@ -296,6 +296,11 @@ const PNG_BYTES = new Uint8Array([
     JSON.stringify(created.effects)
   );
   check(
+    '(a) clothing defaults: brand null, sizes [], scent null',
+    created.brand === null && Array.isArray(created.sizes) && created.sizes.length === 0 && created.scent === null,
+    JSON.stringify({ brand: created.brand, sizes: created.sizes, scent: created.scent })
+  );
+  check(
     '(a) tile round-trips as two colors',
     Array.isArray(created.tile) && created.tile.join(',') === '#374151,#111827',
     JSON.stringify(created.tile)
@@ -318,9 +323,11 @@ const PNG_BYTES = new Uint8Array([
   const fd = new FormData();
   fd.append('name', 'Photo Widget');
   fd.append('subtitle', 'Has a picture');
-  fd.append('category', 'gummies');
+  fd.append('category', 'hoodies');
   fd.append('type', 'Merch');
   fd.append('price', '12.50');
+  fd.append('brand', '824');
+  fd.append('sizes', 'S,M,L,XL');
   fd.append('effects', JSON.stringify(['Calm', 'Focus']));
   fd.append('tile', JSON.stringify(['#111111', '#222222']));
   fd.append('stockQty', '7');
@@ -341,6 +348,12 @@ const PNG_BYTES = new Uint8Array([
   check('(b) string price parsed to 12.5', created.price === 12.5, JSON.stringify(created.price));
   check('(b) string stockQty parsed to 7', created.stockQty === 7, JSON.stringify(created.stockQty));
   check("(b) freeShipping 'true' string parsed on", created.freeShipping === true);
+  check('(b) brand stored from multipart', created.brand === '824', JSON.stringify(created.brand));
+  check(
+    '(b) comma-string sizes parsed to an array',
+    Array.isArray(created.sizes) && created.sizes.join(',') === 'S,M,L,XL',
+    JSON.stringify(created.sizes)
+  );
   check(
     '(b) JSON-encoded effects parsed to an array',
     Array.isArray(created.effects) && created.effects.join(',') === 'Calm,Focus',
@@ -362,7 +375,7 @@ const PNG_BYTES = new Uint8Array([
   const headers = await authHeaders(env);
   const fd = new FormData();
   fd.append('name', 'No Bucket Widget');
-  fd.append('category', 'gummies');
+  fd.append('category', 'hoodies');
   fd.append('type', 'Merch');
   fd.append('photo', new File([PNG_BYTES], 'pixel.png', { type: 'image/png' }));
   const req = new Request(`${ORIGIN}/api/products`, { method: 'POST', headers, body: fd });
@@ -391,7 +404,7 @@ const PNG_BYTES = new Uint8Array([
       jsonRequest(
         `${ORIGIN}/api/products`,
         'POST',
-        { name: 'Tracked Widget', category: 'pouches', type: 'Merch', price: 20, stockQty: 5, lowStockThreshold: 2 },
+        { name: 'Tracked Widget', category: 'shirts', type: 'Merch', price: 20, stockQty: 5, lowStockThreshold: 2 },
         headers
       ),
       env
@@ -431,7 +444,7 @@ const PNG_BYTES = new Uint8Array([
     const res = await productsCreate(ctx(jsonRequest(`${ORIGIN}/api/products`, 'POST', body, headers), env));
     return { status: res.status, data: await res.json().catch(() => ({})) };
   };
-  const noName = await attempt({ category: 'flower', type: 'Merch' });
+  const noName = await attempt({ category: 'shirts', type: 'Merch' });
   check('(d) missing name -> 400', noName.status === 400, `status ${noName.status}`);
   check('(d) missing name message', noName.data.error === 'name is required', JSON.stringify(noName.data));
   const badCat = await attempt({ name: 'X', category: 'merch', type: 'Merch' });
@@ -441,7 +454,7 @@ const PNG_BYTES = new Uint8Array([
     typeof badCat.data.error === 'string' && badCat.data.error.startsWith('category must be one of:'),
     JSON.stringify(badCat.data)
   );
-  const negPrice = await attempt({ name: 'X', category: 'flower', type: 'Merch', price: -1 });
+  const negPrice = await attempt({ name: 'X', category: 'shirts', type: 'Merch', price: -1 });
   check('(d) negative price -> 400', negPrice.status === 400, `status ${negPrice.status}`);
   check(
     '(d) negative price message',
@@ -464,7 +477,7 @@ const PNG_BYTES = new Uint8Array([
       jsonRequest(
         `${ORIGIN}/api/products`,
         'POST',
-        { name: 'Doomed Widget', category: 'vapes', type: 'Merch', price: 5 },
+        { name: 'Doomed Widget', category: 'hats', type: 'Merch', price: 5 },
         headers
       ),
       env
@@ -500,7 +513,7 @@ const PNG_BYTES = new Uint8Array([
   const env = baseEnv(db);
   const res = await productsCreate(
     ctx(
-      jsonRequest(`${ORIGIN}/api/products`, 'POST', { name: 'Sneaky', category: 'flower', type: 'Merch' }),
+      jsonRequest(`${ORIGIN}/api/products`, 'POST', { name: 'Sneaky', category: 'shirts', type: 'Merch' }),
       env
     )
   );

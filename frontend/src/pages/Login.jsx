@@ -76,7 +76,9 @@ export default function Login() {
                     <div className="ord-id">ORD-{o.id}</div>
                     <div className="ord-meta">
                       {new Date(o.createdAt).toLocaleString()} ·{' '}
-                      {o.items.map((i) => `${i.name} × ${i.qty}`).join(', ')}
+                      {o.items
+                        .map((i) => `${i.name}${i.size ? ` (Size: ${i.size})` : ''} × ${i.qty}`)
+                        .join(', ')}
                     </div>
                   </div>
                   <div>

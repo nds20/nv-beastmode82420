@@ -61,7 +61,7 @@ class StubStatement {
 
 const BASE_PRODUCT_COLUMNS = [
   'id', 'name', 'subtitle', 'category', 'type', 'thc', 'strength',
-  'price', 'unit', 'effects', 'tile', 'image',
+  'price', 'unit', 'effects', 'tile', 'image', 'brand', 'sizes', 'scent',
 ];
 const BASE_ORDER_COLUMNS = [
   'id', 'items', 'subtotal', 'tax', 'total', 'customer', 'payment',
@@ -182,7 +182,7 @@ class StubDB {
 function seedProducts(db) {
   const base = {
     subtitle: '',
-    category: 'flower',
+    category: 'shirts',
     type: 'Merch',
     thc: null,
     strength: 'THC TBD',
@@ -292,7 +292,7 @@ function uspsEnv(db) {
 
 console.log('products — shipping field validation');
 {
-  const baseBody = { name: 'Widget', category: 'flower', type: 'Merch' };
+  const baseBody = { name: 'Widget', category: 'shirts', type: 'Merch' };
   const ok = normalizeProduct({ ...baseBody, weightOz: 16, lengthIn: 12, widthIn: 9, heightIn: 6 }, null);
   check('valid measures pass through', ok.weightOz === 16 && ok.lengthIn === 12 && ok.widthIn === 9 && ok.heightIn === 6);
   const unset = normalizeProduct({ ...baseBody }, null);
@@ -616,7 +616,7 @@ console.log('products — persistence');
   const created = await createProduct(env, {
     name: 'Measured Mug',
     subtitle: '',
-    category: 'flower',
+    category: 'shirts',
     type: 'Merch',
     thc: null,
     strength: 'THC TBD',

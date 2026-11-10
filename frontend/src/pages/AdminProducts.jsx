@@ -208,7 +208,7 @@ export default function AdminProducts() {
                   <div className="ord-id">{p.name}</div>
                   <div className="ord-meta">
                     {p.subtitle} · {p.category}
-                    {p.strength ? ` · ${p.strength}` : ''}
+                    {p.brand ? ` · ${p.brand}` : ''}
                   </div>
                   <div className="ord-meta">
                     Stock: {stockLabel}
@@ -217,7 +217,6 @@ export default function AdminProducts() {
                 </div>
                 <div>
                   <div className="ord-id">{priceLabel(p)}</div>
-                  <div className="ord-meta">per {p.unit}</div>
                 </div>
                 <div className="admin-order-actions">
                   <button

@@ -14,6 +14,11 @@
 //                   adds `stock_qty` / `low_stock_threshold` (INTEGER,
 //                   NULL = untracked / default threshold — see
 //                   _lib/inventory.js) and `free_shipping` (0/1).
+//                   Clothing (2026-11-09) adds `brand` (TEXT, NULL =
+//                   no brand), `sizes` (TEXT holding a JSON array
+//                   of size strings; NULL = one-size / not applicable)
+//                   and `scent` (TEXT, NULL = no scent note — the
+//                   fragrance & body-care field; see docs/CLOTHING.md).
 //   orders          one row per order; `items`, `customer` and `payment`
 //                   are TEXT columns holding JSON (payment is NULL or a
 //                   JSON object with only { method, last4 } — full card
@@ -163,6 +168,58 @@ export function ensureInventoryColumns(env) {
   return inventoryColumnsPromise;
 }
 
+// ----- Clothing columns (lazy ensure) -----------------------------------------
+//
+// Same lazy pattern as shipping/inventory above (owner direction
+// 2026-11-09: Shop 824 is a clothing store now). Products gain:
+//   brand  TEXT NULL — the clothing brand ("824", a label name, …);
+//          NULL = unbranded / not stated.
+//   sizes  TEXT NULL — a JSON array of size strings (["S","M","L"]);
+//          NULL = one-size / sizes not applicable. rowToProduct
+//          exposes it as an array ([] when NULL).
+//   scent  TEXT NULL — free-text scent / fragrance notes for the
+//          fragrances + body-care categories (owner addition,
+//          2026-11-09); NULL = no scent note.
+// The legacy thc/strength/effects/unit columns are NOT dropped —
+// history stays readable; the clothing model simply stops writing
+// meaning into them (see _lib/validate.js). cloudflare/schema.sql
+// carries the columns for fresh installs and
+// cloudflare/migration-clothing.sql documents the same ALTERs.
+
+const CLOTHING_COLUMNS = {
+  products: [
+    ['brand', 'TEXT'],
+    ['sizes', 'TEXT'],
+    ['scent', 'TEXT'],
+  ],
+};
+
+let clothingColumnsPromise = null;
+
+export function ensureClothingColumns(env) {
+  if (!clothingColumnsPromise) {
+    clothingColumnsPromise = (async () => {
+      for (const [table, columns] of Object.entries(CLOTHING_COLUMNS)) {
+        // eslint-disable-next-line no-await-in-loop
+        const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+        const existing = new Set((results || []).map((row) => row.name));
+        for (const [name, type] of columns) {
+          if (!existing.has(name)) {
+            // eslint-disable-next-line no-await-in-loop
+            await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run();
+          }
+        }
+      }
+      return true;
+    })().catch((err) => {
+      // Same retry rule as the other ensures: never poison the isolate.
+      clothingColumnsPromise = null;
+      throw err;
+    });
+  }
+  return clothingColumnsPromise;
+}
+
 // ----- Products ---------------------------------------------------------------
 
 export function rowToProduct(row) {
@@ -196,15 +253,22 @@ export function rowToProduct(row) {
     // Free shipping (0/1 in the table): the product is excluded from
     // the shipping package math entirely (see _lib/shipping.js).
     freeShipping: row.free_shipping ? true : false,
+    // Clothing (2026-11-09): brand is a plain nullable string; sizes
+    // is a JSON array in TEXT — exposed as an array, [] when the
+    // column is NULL/empty (one-size / not applicable).
+    brand: row.brand != null && row.brand !== '' ? row.brand : null,
+    sizes: parseJsonColumn(row.sizes, []),
+    scent: row.scent != null && row.scent !== '' ? row.scent : null,
   };
 }
 
 const PRODUCT_COLUMNS =
-  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping';
+  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent';
 
 export async function listProducts(env) {
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
+  await ensureClothingColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY id ASC`
   ).all();
@@ -216,6 +280,7 @@ export async function getProduct(env, id) {
   if (!Number.isFinite(pid)) return null;
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
+  await ensureClothingColumns(env);
   const row = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`
   )
@@ -244,15 +309,21 @@ function productParams(data) {
     data.stockQty != null ? data.stockQty : null,
     data.lowStockThreshold != null ? data.lowStockThreshold : null,
     data.freeShipping ? 1 : 0,
+    // Clothing: brand is a nullable string; sizes store as a JSON
+    // array string, or NULL (one-size) when the list is empty.
+    data.brand != null && data.brand !== '' ? data.brand : null,
+    Array.isArray(data.sizes) && data.sizes.length > 0 ? JSON.stringify(data.sizes) : null,
+    data.scent != null && data.scent !== '' ? data.scent : null,
   ];
 }
 
 export async function createProduct(env, data) {
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
+  await ensureClothingColumns(env);
   const result = await env.DB.prepare(
-    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(...productParams(data))
     .run();
@@ -264,12 +335,14 @@ export async function updateProduct(env, id, data) {
   if (!Number.isFinite(pid)) return null;
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
+  await ensureClothingColumns(env);
   await env.DB.prepare(
     `UPDATE products
      SET name = ?, subtitle = ?, category = ?, type = ?, thc = ?, strength = ?,
          price = ?, unit = ?, effects = ?, tile = ?, image = ?,
          weight_oz = ?, length_in = ?, width_in = ?, height_in = ?,
-         stock_qty = ?, low_stock_threshold = ?, free_shipping = ?
+         stock_qty = ?, low_stock_threshold = ?, free_shipping = ?,
+         brand = ?, sizes = ?, scent = ?
      WHERE id = ?`
   )
     .bind(...productParams(data), pid)

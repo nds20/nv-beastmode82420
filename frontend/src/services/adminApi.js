@@ -224,20 +224,20 @@ function blankToNull(value) {
   return s === '' ? null : s;
 }
 
-/** The editor's comma-separated effects text -> the API's array. */
-function splitEffects(text) {
-  return String(text || '')
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
-}
-
 /**
  * Shape the editor's form state into the JSON payload. Numeric fields
  * go as the strings the admin typed (or null when blank): the server
  * parses and range-checks them (parseOptionalNumber & friends in
  * _lib/validate.js), so a typo surfaces as the server's 400 message
  * rather than being silently coerced here.
+ *
+ * Clothing (2026-11-09): the payload carries brand, sizes (the raw
+ * comma-separated text — the server's parseSizes owns splitting,
+ * trimming and caps) and scent. The retired smoke-shop fields (thc,
+ * strength, effects, unit) are deliberately NOT sent: on update,
+ * normalizeProduct's pick() falls back to the stored row for any
+ * field the body omits, so editing a legacy product never wipes its
+ * stored legacy values; on create they default (null / '' / []).
  */
 function buildProductPayload(form) {
   return {
@@ -246,10 +246,9 @@ function buildProductPayload(form) {
     category: form.category,
     type: String(form.type || '').trim(),
     price: blankToNull(form.price),
-    thc: blankToNull(form.thc),
-    strength: String(form.strength || '').trim(),
-    unit: blankToNull(form.unit),
-    effects: splitEffects(form.effectsText),
+    brand: blankToNull(form.brand),
+    sizes: String(form.sizesText || ''),
+    scent: blankToNull(form.scent),
     tile: Array.isArray(form.tile) ? form.tile : undefined,
     weightOz: blankToNull(form.weightOz),
     lengthIn: blankToNull(form.lengthIn),

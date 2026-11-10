@@ -138,7 +138,19 @@ h1.display, .hero-title {
 .card-type { font-size: 11px; font-weight: 700; letter-spacing: 2.4px; text-transform: uppercase; color: var(--gold); }
 .card-name { font-family: var(--display); font-size: 29px; letter-spacing: 1.2px; font-weight: 400; line-height: 1.05; }
 .card-sub { color: var(--muted); font-size: 14px; }
-.card-strength { font-size: 13px; font-weight: 600; letter-spacing: .6px; }
+.card-brand { font-size: 12px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted); }
+.card-sizes { font-size: 13px; font-weight: 600; letter-spacing: .4px; }
+.card-scent { font-size: 13px; font-style: italic; color: var(--muted); }
+a.add-btn { text-decoration: none; display: inline-block; }
+.size-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.size-btn {
+  background: transparent; color: var(--ink); border: 1px solid var(--muted);
+  cursor: pointer; font-weight: 600; font-size: 14px; min-width: 44px;
+  padding: 8px 12px; border-radius: 7px;
+}
+.size-btn.selected { background: var(--gold); border-color: var(--gold); color: #141414; }
+.dept-section { margin-top: 34px; }
+.dept-title { font-family: var(--display); font-size: 26px; letter-spacing: 1.6px; font-weight: 400; margin-bottom: 14px; }
 .card-footer { margin-top: auto; padding-top: 14px; display: flex; align-items: center; justify-content: space-between; }
 .card-price { font-size: 19px; font-weight: 700; }
 .card-price.tbd { color: var(--gold); letter-spacing: .4px; }

@@ -231,7 +231,9 @@ export default function AdminDashboard() {
                       ? order.customer.fullName
                       : 'Guest'}
                     {' · '}
-                    {order.items.map((i) => `${i.name} × ${i.qty}`).join(', ')}
+                    {order.items
+                      .map((i) => `${i.name}${i.size ? ` (Size: ${i.size})` : ''} × ${i.qty}`)
+                      .join(', ')}
                   </div>
                 </div>
                 <div className="admin-order-side">
@@ -370,7 +372,7 @@ export default function AdminDashboard() {
                   <div className="ord-id">{p.name}</div>
                   <div className="ord-meta">
                     {p.subtitle} · {p.category}
-                    {p.strength ? ` · ${p.strength}` : ''}
+                    {p.brand ? ` · ${p.brand}` : ''}
                   </div>
                   <div className="ord-meta">
                     Stock: {stockLabel}
@@ -379,7 +381,6 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <div className="ord-id">{priceLabel(p)}</div>
-                  <div className="ord-meta">per {p.unit}</div>
                 </div>
               </div>
             );
@@ -409,8 +410,11 @@ function OrderDetail({ order }) {
         </thead>
         <tbody>
           {order.items.map((item) => (
-            <tr key={item.productId}>
-              <td>{item.name}</td>
+            <tr key={`${item.productId}::${item.size || ''}`}>
+              <td>
+                {item.name}
+                {item.size ? ` — Size: ${item.size}` : ''}
+              </td>
               <td>{item.qty}</td>
               <td>{money(item.unitPrice)}</td>
               <td>{money(item.lineTotal)}</td>

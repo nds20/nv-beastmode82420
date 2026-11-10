@@ -68,6 +68,7 @@ function check(name, cond, extra = '') {
 const PRODUCT_COLS_BASE = [
   'id', 'name', 'subtitle', 'category', 'type', 'thc', 'strength', 'price',
   'unit', 'effects', 'tile', 'image', 'weight_oz', 'length_in', 'width_in', 'height_in',
+  'brand', 'sizes', 'scent',
 ];
 const INVENTORY_PRODUCT_COLS = ['stock_qty', 'low_stock_threshold', 'free_shipping'];
 const ORDER_COLS_BASE = [
@@ -280,7 +281,7 @@ function uspsEnv(db) {
 async function makeProduct(env, over = {}) {
   const data = normalizeProduct({
     name: 'Widget',
-    category: 'gummies',
+    category: 'hoodies',
     type: 'Test',
     price: 10,
     ...over,
@@ -326,7 +327,7 @@ const webhookEnv = (db) => baseEnv(db, { STRIPE_WEBHOOK_SECRET: 'whsec_inv_test'
 // =====================================================================================
 {
   const baseRow = {
-    id: 1, name: 'W', subtitle: '', category: 'gummies', type: 'T', thc: null,
+    id: 1, name: 'W', subtitle: '', category: 'hoodies', type: 'T', thc: null,
     strength: '', price: 5, unit: 'each', effects: '[]', tile: '[]', image: null,
     weight_oz: null, length_in: null, width_in: null, height_in: null,
     stock_qty: 0, low_stock_threshold: null, free_shipping: 0,
@@ -350,7 +351,7 @@ const webhookEnv = (db) => baseEnv(db, { STRIPE_WEBHOOK_SECRET: 'whsec_inv_test'
   const throws400 = (fn) => {
     try { fn(); return false; } catch (err) { return err && err.status === 400; }
   };
-  const base = { name: 'W', category: 'gummies', type: 'T' };
+  const base = { name: 'W', category: 'hoodies', type: 'T' };
   check('(b) stockQty -1 -> 400', throws400(() => normalizeProduct({ ...base, stockQty: -1 })));
   check('(b) stockQty 2.5 -> 400', throws400(() => normalizeProduct({ ...base, stockQty: 2.5 })));
   check('(b) stockQty 100001 -> 400', throws400(() => normalizeProduct({ ...base, stockQty: 100001 })));

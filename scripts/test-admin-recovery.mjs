@@ -59,7 +59,7 @@ const ORDER_COLS = [
 ];
 const PRODUCT_COLS = [
   'id', 'name', 'subtitle', 'category', 'type', 'thc', 'strength', 'price',
-  'unit', 'effects', 'tile', 'image', 'weight_oz', 'length_in', 'width_in',
+  'unit', 'effects', 'tile', 'image', 'brand', 'sizes', 'scent', 'weight_oz', 'length_in', 'width_in',
   'height_in', 'stock_qty', 'low_stock_threshold', 'free_shipping',
 ];
 

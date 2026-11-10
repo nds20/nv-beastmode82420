@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
-import { isTbd, isTrackedItem, qtyCapFor } from '../context/CartContext.jsx';
+import { isTbd, isTrackedItem, qtyCapFor, lineKey } from '../context/CartContext.jsx';
 import { money } from '../components/ProductCard';
 
 // Cart — route "/shop/cart". Price-TBD lines stay in the cart, are
@@ -35,11 +35,16 @@ export default function Cart() {
               // Inventory (2026-11-09): the stepper caps at the shelf
               // count for tracked items (updateQty enforces it too);
               // show a note when the line is sitting at that cap.
+              // Clothing (2026-11-09): stock is per product across
+              // sizes, so the cap compares the product's cart TOTAL.
+              const productTotal = items
+                .filter((i) => i.id === item.id)
+                .reduce((sum, i) => sum + i.qty, 0);
               const capped =
-                isTrackedItem(item) && item.stockQty <= 10 && item.qty >= qtyCapFor(item);
+                isTrackedItem(item) && productTotal >= qtyCapFor(item);
               const tile = Array.isArray(item.tile) ? item.tile : ['#374151', '#111827'];
               return (
-                <div className="cart-line" key={item.id}>
+                <div className="cart-line" key={lineKey(item)}>
                   <div
                     className="thumb-sm"
                     style={{ background: `linear-gradient(135deg, ${tile[0]}, ${tile[1]})` }}
@@ -49,10 +54,7 @@ export default function Cart() {
                   <div>
                     <div className="cl-name">{item.name}</div>
                     <div className="cl-sub">{item.subtitle}</div>
-                    <div className="cl-sub">
-                      {item.strength}
-                      {item.unit ? ` · ${item.unit}` : ''}
-                    </div>
+                    {item.size && <div className="cl-sub">Size: {item.size}</div>}
                     <div className={`cl-price${tbd ? ' tbd' : ''}`}>
                       {tbd ? 'Price TBD' : money(item.price * item.qty)}
                     </div>
@@ -62,7 +64,7 @@ export default function Cart() {
                       <button
                         type="button"
                         aria-label="Decrease quantity"
-                        onClick={() => updateQty(item.id, item.qty - 1)}
+                        onClick={() => updateQty(item.id, item.qty - 1, item.size)}
                       >
                         −
                       </button>
@@ -70,7 +72,7 @@ export default function Cart() {
                       <button
                         type="button"
                         aria-label="Increase quantity"
-                        onClick={() => updateQty(item.id, item.qty + 1)}
+                        onClick={() => updateQty(item.id, item.qty + 1, item.size)}
                       >
                         +
                       </button>
@@ -78,7 +80,7 @@ export default function Cart() {
                     <button
                       className="remove-btn"
                       type="button"
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.id, item.size)}
                     >
                       Remove
                     </button>

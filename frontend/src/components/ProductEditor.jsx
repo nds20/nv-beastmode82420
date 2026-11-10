@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { saveAdminProduct } from '../services/adminApi';
+import { CATEGORY_LABELS, categoryLabel } from '../lib/departments';
 
 // Admin product editor — the Add/Edit form on the dedicated
 // Products page (/shop/admin/products), which the admin dashboard
@@ -13,6 +14,13 @@ import { saveAdminProduct } from '../services/adminApi';
 // which owns the wire format — including the two-step JSON-then-photo
 // save that switching a product to "Unlimited" stock requires.
 // Read docs/PRODUCT_EDITOR.md before changing field semantics.
+//
+// Clothing model (2026-11-09, docs/CLOTHING.md): the form is
+// clothing-shaped — category carries the kind (type is an optional
+// style note), plus Brand, Sizes (comma-separated) and Scent for
+// fragrances & body care. The retired smoke-shop fields (THC,
+// strength, effects, unit) are gone from the form AND from the
+// payload, so editing a product never wipes their stored values.
 //
 // Owner's headline control (2026-11-09): the Shipping checkbox.
 // CHECKED = the item ships and the buyer pays the USPS rate at
@@ -30,12 +38,10 @@ import { saveAdminProduct } from '../services/adminApi';
 //                 open (now editing the saved product)
 //   onAuthError() a 401 came back — parent bounces to sign-in
 
-// Mirrors CATEGORIES in functions/api/_lib/validate.js (the API
-// rejects anything else) with the storefront's label rule
-// (pages/Products.jsx): capitalize, except nic-vapes.
-const CATEGORIES = ['flower', 'vapes', 'gummies', 'pouches', 'nic-vapes'];
-const categoryLabel = (c) =>
-  c === 'nic-vapes' ? 'Nicotine Vapes' : c.charAt(0).toUpperCase() + c.slice(1);
+// The category list + labels come from the ONE shared source
+// (lib/departments.js), which mirrors CATEGORIES in
+// functions/api/_lib/validate.js — the API rejects anything else.
+const CATEGORIES = Object.keys(CATEGORY_LABELS);
 
 // Mirrors DEFAULT_TILE in functions/api/_lib/validate.js.
 const DEFAULT_TILE = ['#374151', '#111827'];
@@ -51,10 +57,9 @@ function initialForm(product) {
       category: CATEGORIES[0],
       type: '',
       price: '',
-      thc: '',
-      strength: '',
-      unit: '',
-      effectsText: '',
+      brand: '',
+      sizesText: '',
+      scent: '',
       tile: [...DEFAULT_TILE],
       image: null,
       freeShipping: false,
@@ -74,10 +79,9 @@ function initialForm(product) {
     category: product.category || CATEGORIES[0],
     type: asText(product.type),
     price: asText(product.price),
-    thc: asText(product.thc),
-    strength: asText(product.strength),
-    unit: asText(product.unit),
-    effectsText: Array.isArray(product.effects) ? product.effects.join(', ') : '',
+    brand: asText(product.brand),
+    sizesText: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
+    scent: asText(product.scent),
     tile:
       Array.isArray(product.tile) && product.tile.length === 2
         ? [...product.tile]
@@ -202,84 +206,69 @@ export default function ProductEditor({
           </select>
         </div>
         <div className="field">
-          <label htmlFor="pe-type">Type *</label>
+          <label htmlFor="pe-type">Style / type (optional)</label>
           <input
             id="pe-type"
             type="text"
             value={form.type}
             onChange={set('type')}
-            required
           />
-          <p className="hint">e.g. Merch, Apparel, Test Item</p>
+          <p className="hint">Optional — e.g. Classic fit, Graphic, Limited run.</p>
         </div>
+      </div>
+
+      <div className="field">
+        <label htmlFor="pe-price">Price (dollars)</label>
+        <input
+          id="pe-price"
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          value={form.price}
+          onChange={set('price')}
+        />
+        <p className="hint">
+          Leave blank for Price TBD — the product shows but can&apos;t be bought.
+        </p>
       </div>
 
       <div className="field-row">
         <div className="field">
-          <label htmlFor="pe-price">Price (dollars)</label>
+          <label htmlFor="pe-brand">Brand</label>
           <input
-            id="pe-price"
-            type="number"
-            min="0"
-            step="0.01"
-            inputMode="decimal"
-            value={form.price}
-            onChange={set('price')}
+            id="pe-brand"
+            type="text"
+            value={form.brand}
+            onChange={set('brand')}
+          />
+          <p className="hint">Optional — e.g. 824.</p>
+        </div>
+        <div className="field">
+          <label htmlFor="pe-sizes">Sizes</label>
+          <input
+            id="pe-sizes"
+            type="text"
+            value={form.sizesText}
+            onChange={set('sizesText')}
           />
           <p className="hint">
-            Leave blank for Price TBD — the product shows but can&apos;t be bought.
-          </p>
-        </div>
-        <div className="field">
-          <label htmlFor="pe-unit">Unit</label>
-          <input
-            id="pe-unit"
-            type="text"
-            value={form.unit}
-            onChange={set('unit')}
-          />
-          <p className="hint">e.g. “Nothing — test item”, “per shirt”.</p>
-        </div>
-      </div>
-
-      <div className="field-row">
-        <div className="field">
-          <label htmlFor="pe-strength">Strength label</label>
-          <input
-            id="pe-strength"
-            type="text"
-            value={form.strength}
-            onChange={set('strength')}
-          />
-          <p className="hint">Optional display label shown with the product.</p>
-        </div>
-        <div className="field">
-          <label htmlFor="pe-thc">THC %</label>
-          <input
-            id="pe-thc"
-            type="number"
-            min="0"
-            max="100"
-            step="any"
-            inputMode="decimal"
-            value={form.thc}
-            onChange={set('thc')}
-          />
-          <p className="hint">
-            Optional. With no strength label, the shop shows “&lt;THC&gt;% THC”.
+            e.g. S, M, L, XL — leave blank for one-size items.
           </p>
         </div>
       </div>
 
       <div className="field">
-        <label htmlFor="pe-effects">Effects</label>
+        <label htmlFor="pe-scent">Scent / fragrance notes (optional)</label>
         <input
-          id="pe-effects"
+          id="pe-scent"
           type="text"
-          value={form.effectsText}
-          onChange={set('effectsText')}
+          value={form.scent}
+          onChange={set('scent')}
         />
-        <p className="hint">Comma-separated, e.g. Calm, Focus, Sleepy.</p>
+        <p className="hint">
+          For perfumes, colognes and deodorant — e.g. sandalwood &amp; vanilla.
+        </p>
       </div>
 
       <div className="field-row">

@@ -138,7 +138,7 @@ export default function Checkout() {
   // 5 digits (or the cart changes under a valid ZIP). USPS allows only
   // ~60 rate calls/hour, so this fires per checkout interaction, not
   // per keystroke.
-  const cartSignature = items.map((i) => `${i.id}x${i.qty}`).join(',');
+  const cartSignature = items.map((i) => `${i.id}:${i.size || ''}x${i.qty}`).join(',');
   useEffect(() => {
     if (!/^\d{5}$/.test(form.zip) || items.length === 0) return undefined;
     let cancelled = false;
@@ -263,7 +263,13 @@ export default function Checkout() {
     }
     setSubmitting(true);
     const orderPayload = {
-      items: items.map((i) => ({ productId: i.id, qty: i.qty })),
+      // Clothing (2026-11-09): the chosen size rides along per line
+      // and is snapshotted onto the order item server-side.
+      items: items.map((i) => ({
+        productId: i.id,
+        qty: i.qty,
+        ...(i.size ? { size: i.size } : {}),
+      })),
       customer: {
         fullName: form.fullName.trim(),
         phone: digits(form.phone),
@@ -478,9 +484,10 @@ export default function Checkout() {
         <aside className="summary-card">
           <h3>Order Summary</h3>
           {items.map((i) => (
-            <div className="sum-row" key={i.id}>
+            <div className="sum-row" key={`${i.id}::${i.size || ''}`}>
               <span>
-                {i.name} × {i.qty}
+                {i.name}
+                {i.size ? ` — Size: ${i.size}` : ''} × {i.qty}
               </span>
               <span>{money(i.price * i.qty)}</span>
             </div>

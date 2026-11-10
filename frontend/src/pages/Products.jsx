@@ -1,10 +1,21 @@
 import { useMemo, useState } from 'react';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
+import { categoryLabel, groupByDepartment } from '../lib/departments';
 
 // Products grid — route "/shop/products". Search + sort, ported from
 // the shop's previous storefronts: price sorts always put Price-TBD
 // products last, and category chips are derived from the catalog data.
+//
+// Browsing (owner direction 2026-11-09: "chips AND departments"):
+//   * The chips stay exactly as they were — All + one per category
+//     present in the catalog; a tapped chip filters to a flat grid.
+//   * With NO chip selected, a catalog spanning more than one
+//     department renders GROUPED under department headings (Clothes /
+//     Fragrances / Body Care / More — see lib/departments.js), search
+//     + sort applied first, order preserved within each section.
+//   * A single-department catalog, or any chip selection, renders
+//     the flat grid exactly as before.
 export default function Products() {
   const { products, loading } = useProducts();
   const [term, setTerm] = useState('');
@@ -18,9 +29,6 @@ export default function Products() {
     }
     return [...seen.values()];
   }, [products]);
-
-  const categoryLabel = (c) =>
-    c === 'nic-vapes' ? 'Nicotine Vapes' : c.charAt(0).toUpperCase() + c.slice(1);
 
   const filtered = useMemo(() => {
     const q = term.trim().toLowerCase();
@@ -39,6 +47,22 @@ export default function Products() {
     if (sortBy === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
   }, [products, term, sortBy, category]);
+
+  // Grouped mode only when browsing everything (no chip) and what's
+  // left after search/sort actually spans multiple departments.
+  const groups = useMemo(
+    () => (category === 'all' ? groupByDepartment(filtered) : []),
+    [category, filtered]
+  );
+  const grouped = groups.length > 1;
+
+  const grid = (list) => (
+    <div className="grid">
+      {list.map((p) => (
+        <ProductCard key={p.id} product={p} />
+      ))}
+    </div>
+  );
 
   return (
     <main className="shell">
@@ -96,12 +120,15 @@ export default function Products() {
         <p className="empty-msg">Loading products…</p>
       ) : filtered.length === 0 ? (
         <p className="empty-msg">No products found</p>
+      ) : grouped ? (
+        groups.map((g) => (
+          <section className="dept-section" key={g.id} aria-label={g.label}>
+            <h2 className="dept-title">{g.label}</h2>
+            {grid(g.products)}
+          </section>
+        ))
       ) : (
-        <div className="grid">
-          {filtered.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        grid(filtered)
       )}
     </main>
   );

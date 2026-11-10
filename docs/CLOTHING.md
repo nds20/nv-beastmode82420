@@ -100,6 +100,41 @@ the owner's pick:
   left is grouped, with the sort order preserved inside each
   section.
 
+## Filtering & sorting
+
+The shop page composes three filters and one sort, all client-side
+(the catalog arrives whole from `GET /api/products`; the pure logic
+lives in `frontend/src/lib/departments.js` — `applyShopFilters`,
+`listManufacturers`, `sortProducts` — and is unit-tested in
+`scripts/test-shop-filters.mjs`):
+
+- **Manufacturer filter** — a dropdown beside Sort. Field note:
+  "manufacturer" is the owner's word; the data field is the
+  product's **Brand** — the control reads `brand` and labels itself
+  *Manufacturer*. Options are the makers present in the set being
+  browsed: scoped by the active category chip **and** the search
+  text (tap Candles and you pick from candle makers; All Products
+  lists everyone), recomputed from the data, never a fixed list.
+  Matching is exact (case-insensitive) — and a product with **no
+  brand appears only under "All manufacturers"**: it has no maker
+  to match. The control is **hidden when the scoped set has fewer
+  than two manufacturers** — a one-answer filter is a no-op, and a
+  hidden control can never strand a shopper. If a selected maker
+  has nothing in a newly chosen scope (chip switch or search edit),
+  the filter quietly resets to All manufacturers instead of showing
+  an unexplained empty page.
+- **Sort** — Featured (catalog order, unchanged) · Price: Low to
+  High · Price: High to Low · Name: A to Z · Name: Z to A · Newest
+  (highest id first) · Manufacturer (brand A–Z, unbranded last,
+  then name). **Price-TBD products (`price` null) sort last in both
+  price directions** — a TBD price is unknown, not $0.
+- **Composition** — search, chip, manufacturer and sort all apply
+  together; department grouping runs last, on what's left, with
+  the chosen sort order preserved inside each section. A subtle
+  "X products" line shows the filtered count, and an empty result
+  offers a **Clear filters** action (resets manufacturer, search
+  and chip).
+
 ## The $8.24 test item (nothing item) recipe
 
 The test listing that proves checkout end-to-end, in the Add
@@ -143,4 +178,6 @@ admin surface:
 ensure, the hoodie, the nothing item end-to-end, legacy-category
 rejection, size normalization, sized orders + stock decrement,
 perfume + deodorant, the department grouping helpers, and the
-non-destructive legacy edit.
+non-destructive legacy edit. `scripts/test-shop-filters.mjs` covers
+the filtering + sorting helpers (manufacturers, filter composition,
+every sort key, Price-TBD placement, non-mutation).

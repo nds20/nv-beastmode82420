@@ -203,6 +203,8 @@ a.add-btn { text-decoration: none; display: inline-block; }
 .shop-sort select { width: 100%; }
 .shop-search input:focus, .shop-sort select:focus { outline: none; border-color: var(--gold); }
 .empty-msg { color: var(--muted); padding: 34px 0; font-size: 16px; }
+.result-count { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+.empty-msg .btn { margin-top: 14px; }
 
 /* ---------- Product detail ---------- */
 .pd-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; padding: 30px 0 20px; }

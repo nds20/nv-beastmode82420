@@ -114,3 +114,11 @@ orders never move the signal, §d the paid-marking moves it — via
 real signed webhook handler end-to-end, §f a second paid order
 advances it and back-fills never move it backward, §g direct
 `getLatestPaidOrder` coverage.
+
+---
+
+**Update 2026-11-10:** the shop now also sends real email — order
+confirmations to customers and new-order / new-offer / PAID alerts
+to the admin — via the Gmail API (see `docs/EMAIL.md`). Email is
+the always-on channel; this hook remains the test-item canary and
+checkout watchdog.

@@ -147,10 +147,11 @@ amount (> 0, ≤ 2 decimals, **below** list price — at or above
 list → 400 *"That's the list price — just add it to your cart."*)
 → name ≥ 2 chars → email shape → note ≤ 500 chars.
 
-## The no-email reality
+## Notifications
 
-The shop has no email system, so nobody gets notified — by design,
-and the UI says so at send time:
+Email arrived 2026-11-10 (see `docs/EMAIL.md`): a new offer now
+emails the admin immediately. Buyers still are not emailed about
+offers — the status link remains their channel:
 
 - **Buyers** get a status link, `/shop/offer/:id?token=…`, shown on
   the success panel ("Offer sent! The seller has 72 hours to

@@ -259,6 +259,15 @@ export default function ProductEditor({
         if (onAuthError) onAuthError();
         return;
       }
+      // Error Logs (docs/ERROR_LOGS.md): when the server stamped the
+      // failed call with a request id, cite its short form at the end
+      // of the message — the failure can be found by it in the admin
+      // Error Logs.
+      const refSource =
+        (err && err.requestId) ||
+        (err && err.photoFailure && err.photoFailure.requestId) ||
+        '';
+      const ref = refSource ? ` (ref: ${String(refSource).slice(0, 8)})` : '';
       if (err && err.savedProduct) {
         // Fields landed; only the photo step failed. Adopt the saved
         // product so the next Save edits it instead of duplicating,
@@ -275,10 +284,10 @@ export default function ProductEditor({
           : err.message;
         setError(
           `${lead} The product details were saved — fix the photo ` +
-            'problem and press Save again to attach the photo.'
+            `problem and press Save again to attach the photo.${ref}`
         );
       } else {
-        setError((err && err.message) || 'Could not save the product.');
+        setError(((err && err.message) || 'Could not save the product.') + ref);
       }
     } finally {
       setSaving(false);

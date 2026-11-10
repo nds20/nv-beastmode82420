@@ -18,6 +18,17 @@
 // Callers that can say something more specific than
 // UNAVAILABLE_MESSAGE key off the code (the product photo step does;
 // see lib/photoPrep.js photoFailureMessage).
+//
+// Error Logs (2026-11-10, docs/ERROR_LOGS.md): those two coded
+// failures are ALSO reported, fire-and-forget, to
+// POST /api/client-errors — the browser is the only witness to what
+// actually came back (or didn't), and its report (status,
+// content-type, the first bytes of the answer, plus the request id
+// the server stamped on it) is what lands in the admin Error Logs
+// instead of another round of guessing. Server-answered errors are
+// not reported: the server logs its own 5xx. Errors also carry
+// .requestId whenever the server provided one, so a message shown
+// to the admin can cite it as "(ref: ...)".
 
 import { preparePhotoForUpload } from '../lib/photoPrep';
 
@@ -88,27 +99,92 @@ export const clearAdminToken = () => {
   }
 };
 
-async function adminFetch(path, options = {}, { authed = true } = {}) {
+const CLIENT_ERRORS_PATH = '/api/client-errors';
+
+/**
+ * Fire-and-forget a browser-witnessed failure to the Error Logs
+ * intake (POST /api/client-errors). NEVER throws, NEVER awaited by
+ * callers, and silent on its own failure — a reporting hiccup must
+ * not delay, mask, or replace the original error. The intake call
+ * itself is never reported (no loops).
+ */
+function reportClientError(report) {
+  try {
+    if (!report || !report.url) return;
+    if (String(report.url).includes(CLIENT_ERRORS_PATH)) return;
+    const token = getAdminToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const sent = fetch(CLIENT_ERRORS_PATH, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(report),
+      keepalive: true,
+    });
+    if (sent && typeof sent.catch === 'function') sent.catch(() => {});
+  } catch {
+    // Reporting is best-effort by design.
+  }
+}
+
+async function adminFetch(path, options = {}, { authed = true, operation = '' } = {}) {
   const headers = { ...(options.headers || {}) };
   const token = getAdminToken();
   if (authed && token) headers.Authorization = `Bearer ${token}`;
+  const method = String(options.method || 'GET').toUpperCase();
+  const reportContext = operation ? { operation } : null;
 
   let response;
   try {
     response = await fetch(path, { ...options, headers });
-  } catch {
+  } catch (fetchErr) {
+    // The request or the response never completed. The browser is
+    // the only witness — report what it saw, then surface the coded
+    // error exactly as before.
+    reportClientError({
+      kind: 'network',
+      url: path,
+      method,
+      status: null,
+      message: (fetchErr && fetchErr.message) || 'fetch failed',
+      context: reportContext,
+    });
     const err = new Error(UNAVAILABLE_MESSAGE);
     err.code = 'network';
     throw err;
   }
-  const data = await response.json().catch(() => null);
+  const text = await response.text().catch(() => '');
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+  const responseRequestId =
+    response.headers.get('x-request-id') || (data && data.requestId) || '';
   if (data === null) {
     // Something answered, but not the API — e.g. static hosting
     // returning the app's index.html for an unknown path, or an edge
     // error page. Distinct from a network failure: the code lets
     // callers say so truthfully instead of blaming the connection.
+    // The report carries the evidence this time: the status, the
+    // content-type, and the first bytes of whatever answered.
+    reportClientError({
+      kind: 'bad-response',
+      url: path,
+      method,
+      status: response.status,
+      contentType: response.headers.get('content-type') || '',
+      bodyExcerpt: text.slice(0, 500),
+      message: `Non-JSON response (HTTP ${response.status})`,
+      ...(responseRequestId ? { requestId: responseRequestId } : {}),
+      context: reportContext,
+    });
     const err = new Error(UNAVAILABLE_MESSAGE);
     err.code = 'bad-response';
+    if (responseRequestId) err.requestId = responseRequestId;
     throw err;
   }
   if (!response.ok) {
@@ -117,6 +193,7 @@ async function adminFetch(path, options = {}, { authed = true } = {}) {
     if (response.status === 401 && authed && token) clearAdminToken();
     const err = new Error(data.error || `Request failed (${response.status})`);
     err.status = response.status;
+    if (responseRequestId) err.requestId = responseRequestId;
     throw err;
   }
   return data;
@@ -271,6 +348,25 @@ export async function changeAdminPassword(currentPassword, newPassword) {
 /** The admin order inbox: { orders: [...], newCount }, newest first. */
 export async function fetchAdminOrders() {
   return adminFetch('/api/admin/orders');
+}
+
+// ----- Error Logs (2026-11-10 — docs/ERROR_LOGS.md) ---------------------------
+//
+//   GET    /api/admin/error-logs?limit=   { logs: [...] }, newest
+//          first — server 5xx, client-reported browser failures and
+//          824 Shield blocks, each with its actual error.
+//   DELETE /api/admin/error-logs          { ok, removed } — clears
+//          the whole log (the response is JSON, so unlike the 204
+//          deletes this rides adminFetch normally).
+
+/** The captured failures: { logs: [{ id, ts, requestId, source, ... }] }. */
+export async function fetchErrorLogs(limit = 100) {
+  return adminFetch(`/api/admin/error-logs?limit=${encodeURIComponent(limit)}`);
+}
+
+/** Clear the whole error log. Resolves to { ok: true, removed }. */
+export async function clearErrorLogs() {
+  return adminFetch('/api/admin/error-logs', { method: 'DELETE' });
 }
 
 // ----- Best Offer inbox (2026-11-10 — docs/OFFERS.md) -------------------------
@@ -516,10 +612,14 @@ export async function saveAdminProduct(form, photoFile) {
   const fd = new FormData();
   fd.append('photo', uploadFile);
   try {
-    const result = await adminFetch(`/api/admin/products/${saved.id}/photo`, {
-      method: 'POST',
-      body: fd,
-    });
+    const result = await adminFetch(
+      `/api/admin/products/${saved.id}/photo`,
+      {
+        method: 'POST',
+        body: fd,
+      },
+      { operation: 'product-photo-upload' }
+    );
     // The photo endpoint answers { ok:true, product } — unwrap to
     // the product so callers keep the saveAdminProduct contract.
     // (A failure arrives as a thrown adminFetch error carrying the
@@ -533,6 +633,10 @@ export async function saveAdminProduct(form, photoFile) {
       // failures (network / bad-response) have no server message.
       serverMessage: err.status ? err.message : '',
       code: err.code || '',
+      // The request id the server stamped on the failed call, when
+      // it provided one — the editor appends it as "(ref: ...)" so
+      // the failure can be found in the admin Error Logs.
+      requestId: err.requestId || '',
       heicUnconverted: Boolean(prep.heicUnconverted),
       uploadBytes: Number(uploadFile.size || 0),
     };

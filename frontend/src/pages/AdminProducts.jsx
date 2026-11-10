@@ -146,6 +146,9 @@ export default function AdminProducts() {
         <span className="admin-tab admin-tab-action is-active" aria-current="page">
           + Add Product
         </span>
+        <Link className="admin-tab" to="/shop/admin/error-logs">
+          Error Logs
+        </Link>
       </nav>
 
       <p className="section-sub">

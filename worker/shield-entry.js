@@ -17,6 +17,7 @@
 import appWorker from './index.js';
 import { Shield } from './shield/guard.js';
 import { applySecurityHeaders } from './shield/headers.js';
+import { logError } from '../functions/api/_lib/errorLog.js';
 
 const shield = new Shield({
   // Generous for real storefront traffic (pages fan out into many
@@ -47,6 +48,35 @@ async function shieldedFetch(request, env, ctx) {
   });
 
   if (decision.action === 'block') {
+    // Error Logs (2026-11-10, docs/ERROR_LOGS.md): every Shield BLOCK
+    // also lands in the error_logs table (source 'shield'), so "is
+    // Shield too strong?" is answerable from facts — the reasons and
+    // scores of every block, next to the server/client rows. The
+    // write is best-effort with the airlock's never-break discipline
+    // (logError swallows its own failures); the 403 response below is
+    // byte-identical to before. onDecision's console.warn above
+    // stays as the live-tail copy.
+    const logged = logError(env, {
+      source: 'shield',
+      requestId: crypto.randomUUID(),
+      method: decision.method,
+      path: decision.path,
+      status: 403,
+      errorName: 'ShieldBlock',
+      errorMessage: (decision.reasons || []).join('; '),
+      detail: decision.scores || {},
+      actor: 'anon',
+      userAgent: request.headers.get('user-agent') || '',
+    });
+    if (ctx && typeof ctx.waitUntil === 'function') {
+      try {
+        ctx.waitUntil(logged);
+      } catch {
+        await logged;
+      }
+    } else {
+      await logged;
+    }
     return new Response(
       JSON.stringify({ error: 'Request blocked by 824 Shield.', reasons: decision.reasons }),
       { status: 403, headers: { 'Content-Type': 'application/json' } },

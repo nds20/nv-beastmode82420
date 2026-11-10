@@ -325,6 +325,9 @@ export default function AdminDashboard() {
         <Link className="admin-tab admin-tab-action" to="/shop/admin/products">
           + Add Product
         </Link>
+        <Link className="admin-tab" to="/shop/admin/error-logs">
+          Error Logs
+        </Link>
       </nav>
 
       {authSource === 'demo' && (

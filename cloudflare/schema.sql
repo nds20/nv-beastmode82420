@@ -191,3 +191,28 @@ CREATE TABLE IF NOT EXISTS offers (
   decided_at  TEXT,
   expires_at  TEXT NOT NULL
 );
+
+-- Error Logs (owner directive 2026-11-10): the airlock table — one
+-- row per captured failure (server 5xx, client-reported browser
+-- failures, 824 Shield blocks), read by admins at
+-- /shop/admin/error-logs. Facts only: NO request bodies, NO
+-- headers, NO tokens or secrets are ever stored (see
+-- functions/api/_lib/errorLog.js and docs/ERROR_LOGS.md). Retention
+-- is the newest 500 rows, pruned on write. The table is also
+-- created lazily at runtime (ensureErrorLogsTable in
+-- functions/api/_lib/errorLog.js), so existing databases gain it
+-- with no migration step.
+CREATE TABLE IF NOT EXISTS error_logs (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts            TEXT NOT NULL,
+  request_id    TEXT,
+  source        TEXT NOT NULL,
+  method        TEXT,
+  path          TEXT,
+  status        INTEGER,
+  error_name    TEXT,
+  error_message TEXT,
+  detail        TEXT,
+  actor         TEXT,
+  user_agent    TEXT
+);

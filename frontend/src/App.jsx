@@ -18,6 +18,7 @@ import AdminForgot from './pages/AdminForgot';
 import AdminSetPassword from './pages/AdminSetPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
+import AdminErrorLogs from './pages/AdminErrorLogs';
 
 // Shop layout — plain pass-through for the /shop routes.
 function ShopLayout() {
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="admin/set-password" element={<AdminSetPassword />} />
               <Route path="admin" element={<AdminDashboard />} />
               <Route path="admin/products" element={<AdminProducts />} />
+              <Route path="admin/error-logs" element={<AdminErrorLogs />} />
             </Route>
             <Route path="*" element={<Hub />} />
           </Routes>

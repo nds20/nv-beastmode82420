@@ -169,6 +169,8 @@ export function parseGender(value) {
 //   * duplicates fold case-insensitively, FIRST casing (and first
 //     valid entry) wins — an entry dropped for a bad qty does not
 //     claim its size's slot;
+//   * "No size" (any casing) normalizes to the canonical label
+//     NO_SIZE_LABEL and sorts first — see below;
 //   * qty must be a whole number 0..9999, else the entry is dropped
 //     (0 is legitimate: the size exists but is sold out);
 //   * at most MAX_SIZES entries;
@@ -176,11 +178,23 @@ export function parseGender(value) {
 //     map that would strand the product with no sizes at all.
 export const MAX_SIZE_QTY = 9999;
 
+// "No size" (owner direction 2026-11-10): the sizeless entry for
+// products that have no size variants at all — fragrances, colognes,
+// deodorant. It is a first-class size-inventory key in every other
+// respect (counted, decremented, capped, sold out, restockable);
+// only its label and canonical position are special. Any casing
+// variant ("no size", "NO SIZE") normalizes to exactly this label —
+// the one place parseSizeInventory recases instead of keeping the
+// first-seen casing — so the key can never fork into two entries
+// that mean the same thing.
+export const NO_SIZE_LABEL = 'No size';
+
 // Canonical clothing size order: known sizes sort by this list
 // (case-insensitive); unknown labels keep their input order after
-// the known ones (Array.prototype.sort is stable).
+// the known ones (Array.prototype.sort is stable). "No size" sorts
+// FIRST — it means the absence of size variants.
 export const CANONICAL_SIZE_ORDER = [
-  'XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'One Size',
+  'No size', 'XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'One Size',
 ];
 const SIZE_RANK = new Map(
   CANONICAL_SIZE_ORDER.map((s, i) => [s.toLowerCase(), i])
@@ -217,8 +231,10 @@ export function parseSizeInventory(value) {
   const claimed = new Set();
   const out = [];
   for (const [rawSize, rawQty] of entries) {
-    const size = String(rawSize == null ? '' : rawSize).trim().slice(0, MAX_SIZE_LENGTH);
+    let size = String(rawSize == null ? '' : rawSize).trim().slice(0, MAX_SIZE_LENGTH);
     if (!size) continue;
+    // "No size" is canonical down to its casing (see NO_SIZE_LABEL).
+    if (size.toLowerCase() === NO_SIZE_LABEL.toLowerCase()) size = NO_SIZE_LABEL;
     const qty = Number(rawQty);
     if (!Number.isInteger(qty) || qty < 0 || qty > MAX_SIZE_QTY) continue;
     const key = size.toLowerCase();

@@ -19,6 +19,10 @@ import { submitOffer, saveOfferToken } from '../services/offersApi';
 // picker renders and Add to Cart stays disabled until a size is
 // chosen ("Pick a size"); the chosen size rides the cart line into
 // the order. One-size products (empty sizes) add exactly as before.
+// "No size" (2026-11-10): a per-size product whose ONLY entry is
+// "No size" (fragrances, colognes, deodorant) renders NO picker —
+// there is nothing to pick — and Add submits that size
+// automatically; alongside other sizes it picks like any size.
 export default function ProductDetail() {
   const { id } = useParams();
   const { getProduct, loading } = useProducts();
@@ -61,10 +65,25 @@ export default function ProductDetail() {
   const lowStock = !perSize && isLowStock(product);
   const sizes = Array.isArray(product.sizes) ? product.sizes : [];
   const needsSize = sizes.length > 0;
-  const qtyCap = perSize && size ? qtyCapForSize(product, size) : qtyCapFor(product);
+  // "No size" (2026-11-10): a per-size product whose ONLY entry is
+  // "No size" has nothing for a buyer to pick — no picker renders,
+  // the stepper caps at that entry's own count (the per-size cap
+  // path, via effectiveSize), its low-stock note shows at product
+  // level (there is no picker button to carry it), and Add submits
+  // the size automatically. Sold out (qty 0) still reads through
+  // the derived stockQty, so the existing sold-out treatment holds.
+  const noSizeOnly =
+    perSize !== null && perSize.length === 1 && perSize[0].size === 'No size';
+  const showSizePicker = needsSize && !noSizeOnly;
+  const effectiveSize = noSizeOnly ? 'No size' : size;
+  const noSizeQty = noSizeOnly ? perSize[0].qty : null;
+  const qtyCap =
+    perSize && effectiveSize ? qtyCapForSize(product, effectiveSize) : qtyCapFor(product);
   const lowThreshold =
     product.lowStockThreshold != null ? product.lowStockThreshold : LOW_STOCK_THRESHOLD;
-  const addDisabled = soldOut || (needsSize && !size);
+  const noSizeLow =
+    noSizeOnly && !soldOut && noSizeQty !== null && noSizeQty > 0 && noSizeQty <= lowThreshold;
+  const addDisabled = soldOut || (showSizePicker && !size);
 
   const pickSize = (s) => {
     setSize(s);
@@ -74,7 +93,7 @@ export default function ProductDetail() {
 
   const onAdd = () => {
     if (addDisabled) return;
-    addToCart(product, qty, size);
+    addToCart(product, qty, effectiveSize);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1200);
   };
@@ -88,7 +107,7 @@ export default function ProductDetail() {
     setOfferForm((f) => ({ ...f, [field]: e.target.value }));
   const onOfferSubmit = async (e) => {
     e.preventDefault();
-    if (needsSize && !size) {
+    if (showSizePicker && !size) {
       setOfferError('Pick a size first.');
       return;
     }
@@ -102,7 +121,7 @@ export default function ProductDetail() {
         email: offerForm.email,
         ...(offerForm.phone.trim() ? { phone: offerForm.phone.trim() } : {}),
         ...(offerForm.note.trim() ? { note: offerForm.note.trim() } : {}),
-        ...(needsSize ? { size } : {}),
+        ...(effectiveSize ? { size: effectiveSize } : {}),
       });
       saveOfferToken(created.id, created.accessToken);
       setOfferSent(created);
@@ -165,7 +184,8 @@ export default function ProductDetail() {
           <div className={`pd-price${tbd ? ' tbd' : ''}`}>{priceLabel(product)}</div>
           {soldOut && <p className="stock-note">Sold out</p>}
           {lowStock && <p className="stock-note">Only {product.stockQty} left</p>}
-          {needsSize && (
+          {noSizeLow && <p className="stock-note">Only {noSizeQty} left</p>}
+          {showSizePicker && (
             <div className="pd-sizes">
               <span className="pd-label">Size</span>
               <div className="size-picker" role="group" aria-label="Choose a size">
@@ -279,7 +299,7 @@ export default function ProductDetail() {
                           Below the list price — at list price, just add it to your cart.
                         </p>
                       </div>
-                      {needsSize && (
+                      {showSizePicker && (
                         <p className="hint">
                           Size: <strong>{size || 'pick a size above first'}</strong>
                         </p>

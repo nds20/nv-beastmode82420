@@ -173,6 +173,23 @@ stepper and the cart cap at the SELECTED size's count
 the breakdown ("S:2 · M:0 · L:2") for per-size products. Tests:
 `scripts/test-size-stock.mjs`.
 
+**"No size" — the sizeless entry** (2026-11-10, owner direction:
+fragrances, colognes and deodorants need a quantity with no
+clothing size): `"No size"` is a first-class size-inventory key,
+not a mode of its own. It sorts FIRST in canonical order (before
+XXS — it means the absence of size variants) and
+`parseSizeInventory` normalizes any casing variant ("no size",
+"NO SIZE") to exactly `"No size"` — the one place the parser
+recases instead of keeping first-seen casing. In every other
+respect it behaves like "M": orders must name it (the per-size
+size-required rule applies), it caps, counts down, sells out,
+restocks through the admin stock endpoint's `size` field, and
+carries through Best Offer accept/pay. The one buyer-side
+difference: a product whose ONLY entry is `"No size"` renders no
+size picker on the detail page — the stepper caps at that entry's
+count and Add submits the size automatically. Mixed with other
+sizes, it is simply one more picker entry, in first position.
+
 ## Browsing: chips + departments
 
 The shop page (`frontend/src/pages/Products.jsx`) offers both, per

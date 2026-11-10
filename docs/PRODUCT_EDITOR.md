@@ -77,10 +77,15 @@ stock"). What the form does:
   Payload: `gender` (the value or null).
 - **Size rows** replace the old comma-separated Sizes text input.
   Each row is [size label][quantity][Remove], with an
-  **＋ Add a size** button and quick-add chips (**XS S M L XL
-  2XL**) that append a row (a chip for a size that already has a
+  **＋ Add a size** button and quick-add chips (**No size XS S M L
+  XL 2XL**) that append a row (a chip for a size that already has a
   row does nothing). A one-size product is just a single row
-  labeled "One Size". The rows ARE the stock: when at least one
+  labeled "One Size". **"No size"** (the first chip) is the
+  fragrance / cologne / deodorant path: a product with no size
+  variants gets ONE row labeled "No size" with how many are on the
+  shelf — it counts down and sells out like any size, and buyers
+  see no size picker for it (see `docs/CLOTHING.md`). The rows
+  ARE the stock: when at least one
   row is filled in, the product is in per-size mode and the
   Inventory radios below are replaced by a note (plus the
   low-stock threshold, which then applies per size). With NO

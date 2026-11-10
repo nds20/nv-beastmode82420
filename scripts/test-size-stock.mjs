@@ -12,9 +12,12 @@
 // ordered size on BOTH commit paths (demo-card placement and the
 // Stripe webhook), floored and idempotent; the admin stock
 // endpoint's per-size mode; the Best Offer flow checking and
-// decrementing the offer's size; and the explicit clear-back-to-
-// legacy update. Drives the REAL handlers with a StubDB modeled on
-// test-inventory / test-offers. No network, no wrangler.
+// decrementing the offer's size; the "No size" sizeless entry
+// (fragrances/colognes/deodorant — canonical first, casing-
+// normalized, proven through the same gates); and the explicit
+// clear-back-to-legacy update. Drives the REAL handlers with a
+// StubDB modeled on test-inventory / test-offers. No network, no
+// wrangler.
 //
 // Run: node scripts/test-size-stock.mjs
 
@@ -784,6 +787,136 @@ const sizeQty = (product, size) =>
   const workerIndex = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
   check('(k) no new routes were needed (worker/index.js untouched by this feature)',
     !workerIndex.includes('size-stock'));
+}
+
+// =====================================================================================
+// (l) "No size" — the sizeless per-size entry (owner direction
+// 2026-11-10: "make sure there's an option that says no size" so
+// fragrances, colognes and deodorants can carry a quantity with NO
+// clothing size). A normal size-inventory key in every respect —
+// canonical FIRST, casing-normalized to exactly "No size" — proven
+// here through parse, create, placement gates, the demo commit,
+// the admin stock endpoint and the offer flow.
+// =====================================================================================
+{
+  // Parse: canonical first position + casing normalization.
+  check('(l) "No size" sorts FIRST, before XXS',
+    JSON.stringify(parseSizeInventory([
+      { size: 'M', qty: 1 }, { size: 'No size', qty: 3 }, { size: 'XXS', qty: 1 },
+    ]).map((e) => e.size)) === JSON.stringify(['No size', 'XXS', 'M']));
+  check('(l) casing variants normalize to exactly "No size"',
+    JSON.stringify(parseSizeInventory([{ size: 'no size', qty: 2 }])) ===
+      JSON.stringify([{ size: 'No size', qty: 2 }]) &&
+    JSON.stringify(parseSizeInventory([{ size: 'NO SIZE', qty: 2 }])) ===
+      JSON.stringify([{ size: 'No size', qty: 2 }]));
+  check('(l) casing variants dedupe into ONE canonical entry (first qty wins)',
+    JSON.stringify(parseSizeInventory([
+      { size: 'no size', qty: 2 }, { size: 'No Size', qty: 9 },
+    ])) === JSON.stringify([{ size: 'No size', qty: 2 }]));
+  check('(l) "One Size" untouched: still canonical after clothing sizes',
+    JSON.stringify(parseSizeInventory([
+      { size: 'One Size', qty: 1 }, { size: 'No size', qty: 1 }, { size: 'S', qty: 1 },
+    ]).map((e) => e.size)) === JSON.stringify(['No size', 'S', 'One Size']));
+
+  // A fragrance-shaped product: category fragrances, only {"No size": 3}.
+  const db = new StubDB();
+  const env = baseEnv(db);
+  const headers = await adminHeaders(env);
+  const fragrance = await createProduct(env, normalizeProduct({
+    name: 'Vince Camuto Cologne', category: 'fragrances', price: 40,
+    brand: 'Vince Camuto', scent: 'bergamot & leather',
+    sizeInventory: [{ size: 'No size', qty: 3 }],
+  }));
+  check('(l) fragrance create: single "No size" entry, derived fields follow',
+    JSON.stringify(fragrance.sizeInventory) === JSON.stringify([{ size: 'No size', qty: 3 }]) &&
+    JSON.stringify(fragrance.sizes) === JSON.stringify(['No size']) &&
+    fragrance.stockQty === 3 && fragrance.available === true,
+    JSON.stringify(fragrance.sizeInventory));
+  const storedRow = db.state.products.find((r) => r.id === fragrance.id);
+  check('(l) stored map key is exactly "No size"',
+    storedRow.size_inventory === '{"No size":3}', storedRow.size_inventory);
+
+  // Placement gates: the size-required rule is satisfied BY
+  // "No size"; unknown sizes still reject; oversell names the size.
+  const missing = await placeOrder(env, {
+    items: [{ productId: fragrance.id, qty: 1 }], customer: CUSTOMER,
+  });
+  check('(l) per-size rule still applies: NO size at all -> 400 choose-a-size',
+    missing.status === 400 && /choose a size/i.test(missing.data.error || ''),
+    JSON.stringify(missing.data));
+  const unknown = await placeOrder(env, {
+    items: [{ productId: fragrance.id, qty: 1, size: 'M' }], customer: CUSTOMER,
+  });
+  check('(l) a clothing size on a No size product -> 400 not offered',
+    unknown.status === 400 && (unknown.data.error || '').includes('not offered in size "M"'),
+    unknown.data.error);
+  const over = await placeOrder(env, {
+    items: [{ productId: fragrance.id, qty: 4, size: 'No size' }], customer: CUSTOMER,
+  });
+  check('(l) oversell -> 400 naming "No size"',
+    over.status === 400 && (over.data.error || '') === '"No size" only has 3 left.',
+    over.data.error);
+
+  // Commit: qty 2 with size "No size" decrements to 1.
+  const bought = await placeOrder(env, {
+    items: [{ productId: fragrance.id, qty: 2, size: 'No size' }],
+    customer: CUSTOMER, payment: DEMO_CARD,
+  });
+  check('(l) demo order with size "No size" places', bought.status === 201, `got ${bought.status}`);
+  check('(l) order line snapshots size "No size"', bought.data.items[0].size === 'No size');
+  let after = await getProduct(env, fragrance.id);
+  check('(l) commit decrements "No size" 3 -> 1 and stockQty follows',
+    sizeQty(after, 'No size') === 1 && after.stockQty === 1 && after.available === true,
+    JSON.stringify(after.sizeInventory));
+
+  // Admin stock endpoint restocks "No size" like any size.
+  const patchStock = async (id, body) => {
+    const res = await stockPatch(ctx(
+      jsonRequest(`${ORIGIN}/api/admin/products/${id}/stock`, 'PATCH', body, headers),
+      env, { id: String(id) }
+    ));
+    return { status: res.status, data: await res.json().catch(() => ({})) };
+  };
+  const restock = await patchStock(fragrance.id, { size: 'No size', adjustBy: 2 });
+  check('(l) admin stock endpoint restocks "No size" by name',
+    restock.status === 200 && sizeQty(restock.data, 'No size') === 3, JSON.stringify(restock.data));
+
+  // Offers carry "No size" through create, accept and pay.
+  const offerRes = await offerCreate(ctx(jsonRequest(`${ORIGIN}/api/offers`, 'POST', {
+    productId: fragrance.id, offerAmount: 30, size: 'No size',
+    name: 'Test Buyer', email: 'buyer@example.com',
+  }), env));
+  const offerData = await offerRes.json().catch(() => ({}));
+  check('(l) offer on a No size product is created carrying the size',
+    offerRes.status === 201 && offerData.size === 'No size',
+    `got ${offerRes.status}: ${JSON.stringify(offerData)}`);
+  const acceptRes = await offerAccept(ctx(
+    jsonRequest(`${ORIGIN}/api/admin/offers/${offerData.id}/accept`, 'POST', {}, headers),
+    env, { id: String(offerData.id) }
+  ));
+  check('(l) offer accept succeeds', acceptRes.status === 200, `got ${acceptRes.status}`);
+  const payRes = await offerPay(ctx(jsonRequest(
+    `${ORIGIN}/api/offers/${offerData.id}/pay`, 'POST',
+    { accessToken: offerData.accessToken, customer: CUSTOMER, payment: DEMO_CARD }
+  ), env, { id: String(offerData.id) }));
+  check('(l) offer pay succeeds', payRes.status === 201, `got ${payRes.status}`);
+  after = await getProduct(env, fragrance.id);
+  check('(l) offer pay decrements "No size" (3 -> 2)',
+    sizeQty(after, 'No size') === 2 && after.stockQty === 2, JSON.stringify(after.sizeInventory));
+  const offerRow = db.state.offers.find((r) => r.id === offerData.id);
+  check('(l) offer flipped to paid with its size intact',
+    offerRow.status === 'paid' && offerRow.size === 'No size', JSON.stringify(offerRow));
+
+  // Frontend wiring: the chip, the helper sentence, the no-picker path.
+  const editorSrc = readFileSync(new URL('../frontend/src/components/ProductEditor.jsx', import.meta.url), 'utf8');
+  check('(l) editor quick-add chips lead with "No size"',
+    editorSrc.includes("const QUICK_SIZES = ['No size', 'XS', 'S', 'M', 'L', 'XL', '2XL'];"));
+  check('(l) editor helper names the fragrance path',
+    editorSrc.includes('For fragrances, colognes and deodorant, add the No size row with how many you have.'));
+  const detailSrc = readFileSync(new URL('../frontend/src/pages/ProductDetail.jsx', import.meta.url), 'utf8');
+  check('(l) detail page: single-No-size products skip the picker and auto-submit the size',
+    detailSrc.includes('noSizeOnly') && detailSrc.includes('showSizePicker') &&
+    detailSrc.includes('effectiveSize'));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

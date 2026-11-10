@@ -76,8 +76,10 @@ const asText = (v) => (v === null || v === undefined ? '' : String(v));
 // Quick-add size chips for the size-rows editor (2026-11-10): one
 // tap appends a row for that size (skipped when a row for it
 // already exists — a duplicate row is a save error, so the chip
-// never creates one).
-const QUICK_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
+// never creates one). "No size" leads (2026-11-10): the sizeless
+// row for fragrances, colognes and deodorant — one row, one
+// quantity, no clothing sizes.
+const QUICK_SIZES = ['No size', 'XS', 'S', 'M', 'L', 'XL', '2XL'];
 
 /** The form's size rows that carry anything at all (size or qty). */
 function filledSizeRows(form) {
@@ -440,6 +442,7 @@ export default function ProductEditor({
           Large ×2, all on this one product. Each size counts down and
           sells out on its own. Leave every row off for a one-size item,
           or to use the single stock count below instead.
+          For fragrances, colognes and deodorant, add the No size row with how many you have.
         </p>
       </div>
 

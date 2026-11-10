@@ -31,6 +31,15 @@ the default, `DEFAULT_LOW_STOCK_THRESHOLD = 3` (one constant in
 `rowToProduct` computes `available` server-side so every client
 agrees: `stockQty === null → true`, otherwise `stockQty > 0`.
 
+**Per-size products (2026-11-10):** a product with a
+`size_inventory` map (see `docs/CLOTHING.md`, "Sizes, gender &
+per-size stock") is tracked PER SIZE: `stockQty` reads as the sum
+of the size counts, placement gates each line against its own
+size's count, and the commit decrements only the ordered size
+(`stock_qty` follows as the new sum). Everything below applies to
+both modes; the per-size differences are placement/commit details,
+not a second engine.
+
 ## When stock moves — the two commit points
 
 Placement is only a gate; **no stock moves when an order is placed**.

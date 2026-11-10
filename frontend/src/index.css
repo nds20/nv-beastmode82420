@@ -149,6 +149,8 @@ a.add-btn { text-decoration: none; display: inline-block; }
   padding: 8px 12px; border-radius: 7px;
 }
 .size-btn.selected { background: var(--gold); border-color: var(--gold); color: #141414; }
+/* Per-size stock (2026-11-10): a sold-out size's button is disabled. */
+.size-btn:disabled { opacity: .45; cursor: not-allowed; text-decoration: line-through; }
 .dept-section { margin-top: 34px; }
 .dept-title { font-family: var(--display); font-size: 26px; letter-spacing: 1.6px; font-weight: 400; margin-bottom: 14px; }
 .card-footer { margin-top: auto; padding-top: 14px; display: flex; align-items: center; justify-content: space-between; }
@@ -706,6 +708,18 @@ textarea.ag-input { letter-spacing: normal; text-align: left; }
   padding: 0; background: transparent; border: none; accent-color: var(--gold);
 }
 .product-editor .hint, .field .hint { font-size: 13px; color: var(--muted); margin-top: 7px; }
+/* Size rows (2026-11-10, per-size stock): [size][qty][remove] per
+   row, quick-add chips under them. Scoped to the editor. */
+.product-editor .size-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.product-editor .size-row input[type='text'] { flex: 2 1 0; }
+.product-editor .size-row input[type='number'] { flex: 1 1 0; }
+.product-editor .size-row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0 2px; }
+.product-editor .size-chip {
+  padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--ink); font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.product-editor .size-chip:hover { border-color: var(--gold); color: var(--gold); }
 .product-editor input[type='color'] { padding: 4px; height: 48px; cursor: pointer; }
 .editor-thumb {
   display: block; max-width: 140px; max-height: 140px; object-fit: cover;

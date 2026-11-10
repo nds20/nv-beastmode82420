@@ -18,6 +18,7 @@ import { handle, json, fail, numericId } from '../../../_lib/http.js';
 import { requireAdmin } from '../../../_lib/auth.js';
 import { getOffer, updateOffer, getProduct } from '../../../_lib/db.js';
 import { expireOfferIfPending } from '../../../_lib/offers.js';
+import { hasSizeInventory, sizeQtyRemaining } from '../../../_lib/inventory.js';
 
 export const onRequestPost = handle(async (context) => {
   await requireAdmin(context);
@@ -36,7 +37,17 @@ export const onRequestPost = handle(async (context) => {
 
   const product = await getProduct(env, offer.productId);
   if (!product) fail(409, 'The product for this offer no longer exists.');
-  if (product.stockQty !== null && product.stockQty !== undefined && product.stockQty < 1) {
+  // Sold-out guard. Per-size products (2026-11-10): the offer is
+  // for ONE size, so it is THAT size's remaining count that must
+  // cover it — the derived total could be positive while the
+  // offer's size is gone. Legacy products keep the total check.
+  // (The pay path re-checks through normalizeOrder either way;
+  // this is the early, honest answer at decision time.)
+  if (hasSizeInventory(product) && offer.size) {
+    if ((sizeQtyRemaining(product, offer.size) || 0) < 1) {
+      fail(409, 'Sold out since the offer was made.');
+    }
+  } else if (product.stockQty !== null && product.stockQty !== undefined && product.stockQty < 1) {
     fail(409, 'Sold out since the offer was made.');
   }
 

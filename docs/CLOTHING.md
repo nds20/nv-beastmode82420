@@ -38,11 +38,18 @@ headings, editor select and product pages can never drift apart.
 - **price** — dollars; blank = Price TBD (shows, can't be bought).
 - **brand** — optional text (≤ 80 chars), e.g. `824`. Shown on the
   card, the detail page and the admin lists.
-- **sizes** — the size run: an array of size strings, entered in the
-  editor as comma-separated text (`S, M, L, XL`). Caps normalize
-  (never reject): at most 12 entries, each truncated to 12 chars,
-  blanks and duplicates dropped. **Empty = one-size / not
-  applicable** (hats, fragrances, the test item).
+- **sizes** — the size run: an array of size strings. Historically
+  entered as comma-separated text; since 2026-11-10 the editor
+  manages sizes through the per-size rows below, and a legacy
+  product's stored run is left exactly as it is until the owner
+  switches it (see "Sizes, gender & per-size stock"). Caps
+  normalize (never reject): at most 12 entries, each truncated to
+  12 chars, blanks and duplicates dropped. **Empty = one-size /
+  not applicable** (hats, fragrances, the test item).
+- **gender** — optional: `mens` | `womens` | `unisex` | `kids` |
+  null. Shown as a label ("Women's") on the card, the detail page
+  and the admin lists. Validated forgivingly in normalizeProduct
+  (unknown value → null). See the per-size section below.
 - **scent** — optional free-text scent / fragrance notes
   (≤ 120 chars), e.g. `Sandalwood & vanilla`. For perfumes, colognes,
   candles and deodorant; shown on the card and detail page as
@@ -74,13 +81,97 @@ lazily at runtime by `ensureClothingColumns()` in
 - The chosen size is snapshotted onto the order item
   (`items[].size`) server-side; a size the product doesn't offer is
   rejected with a 400. One-size products take no size.
-- **Stock is per-PRODUCT, not per-size** (v1, deliberately): one
-  count covers the whole size run. The cart caps the product's
-  *total* quantity across its size lines, placement gates each line
-  against the count, and the payment commit decrements the product
-  count — exactly the inventory rules in `docs/INVENTORY.md`, just
-  shared across sizes. Per-size stock is a possible later build,
-  not a silent behavior.
+- **Stock for legacy products is per-PRODUCT**: one count covers
+  the whole size run. The cart caps the product's *total* quantity
+  across its size lines, placement gates each line against the
+  count, and the payment commit decrements the product count —
+  exactly the inventory rules in `docs/INVENTORY.md`, just shared
+  across sizes. Products the owner has switched to per-size stock
+  (next section) count each size separately instead.
+
+## Sizes, gender & per-size stock
+
+Added 2026-11-10 at the owner's direction: "when adding product
+allow me to select a size allow me to select a gender and then
+allow me to enter a quantity for each size" — Small ×2, Medium ×2,
+Large ×2, all on ONE product, each size counting down and selling
+out on its own.
+
+**Data model** (`cloudflare/migration-size-stock.sql`, lazily at
+runtime via `ensureSizeStockColumns()` in `_lib/db.js`):
+
+- `products.gender TEXT` — `'mens' | 'womens' | 'unisex' |
+  'kids' | NULL`. `parseGender` in `_lib/validate.js` normalizes
+  case-insensitively and maps anything unknown to null (forgiving,
+  like sizes — never a 400). Exposed as `product.gender`; display
+  labels live in `GENDER_LABELS` (server) and
+  `frontend/src/lib/departments.js` (`GENDERS` / `genderLabel()`).
+  Gender is independent of stock mode — it can be set on any
+  product, including legacy ones, without touching stock.
+- `products.size_inventory TEXT` — a JSON object mapping size
+  label → quantity, e.g. `{"S":2,"M":2,"L":2}`; NULL = legacy
+  mode. The API shape is `sizeInventory`: an array
+  `[{ size, qty }]` in canonical size order (XXS…5XL, then "One
+  Size", then other labels in entry order). `parseSizeInventory`
+  accepts an array, an object map, or either JSON-encoded (the
+  multipart form); sizes are trimmed and deduped
+  case-insensitively (first casing wins); a quantity must be an
+  integer 0–9999 or its entry is dropped (0 is legitimate — a
+  sold-out size); at most 12 entries; an empty result normalizes
+  to null.
+
+**Derived fields**: when a map is present, `rowToProduct` derives
+`sizes` = the map's keys in canonical order, `stockQty` = the sum
+of quantities, and `available` = sum > 0. The `stock_qty` column
+is kept equal to that sum on create/update (and by every
+decrement), so the admin lists and low-stock logic keep working
+unchanged.
+
+**Precedence (normalizeProduct)**: a payload that CONTAINS
+`sizeInventory` wins — `sizes`/`stockQty` inputs are then ignored
+for stock purposes — and an explicitly EMPTY `sizeInventory`
+(`[]` / `{}`) clears the product back to legacy mode. A payload
+that omits `sizeInventory` keeps the product's stored mode
+exactly. **Nothing auto-converts a legacy product**: live product
+id 2 ("Button down shirt", sizes `["Women's L"]`, stock 1) still
+reports exactly that until the owner edits it into the new mode.
+
+**Orders & inventory**:
+
+- Placement (`normalizeOrder`): for a per-size product the size is
+  REQUIRED (missing → 400 "Please choose a size…"), must be one of
+  the product's sizes, and the quantity may not exceed THAT SIZE's
+  remaining count — `'"M" only has 2 left.'` Legacy products keep
+  the previous behavior exactly.
+- Commit (`applyOrderInventory`, same two commit points as always
+  — Stripe webhook paid + demo-card placement): the ordered size's
+  count decrements (floored at 0) and `stock_qty` follows as the
+  new sum, via `decrementProductSizeStock` in `_lib/db.js`;
+  idempotent via `orders.inventory_applied`. Expired /
+  async-failed events never decrement.
+- Best Offer: accepting an offer checks the OFFER's size count
+  (sold out → the same 409 "Sold out since the offer was made.");
+  paying runs through the normal order + inventory path, so the
+  offer's size is what counts down. The helpers
+  (`hasSizeInventory`, `sizeQtyRemaining` in `_lib/inventory.js`)
+  are shared — no forked logic.
+- Admin stock endpoint (`PATCH /api/admin/products/:id/stock`):
+  an optional `size` targets one size of a per-size product
+  (`stockQty` sets it, `adjustBy` adjusts it, floored at 0;
+  unknown size → 400). For a per-size product WITHOUT a size, both
+  operations are 400 ("pick a size…") — a whole-product number is
+  ambiguous when sizes carry their own counts. Sending `size` for
+  a legacy product is a 400; legacy calls without `size` are
+  unchanged.
+
+**Storefront**: the editor's size rows + Gender select are
+documented in `docs/PRODUCT_EDITOR.md`. The detail page's size
+picker disables sold-out sizes (labeled "Sold out") and shows
+"Only X left" at or under the low-stock threshold; the quantity
+stepper and the cart cap at the SELECTED size's count
+(`qtyCapForSize` in `CartContext.jsx`). Admin product lists show
+the breakdown ("S:2 · M:0 · L:2") for per-size products. Tests:
+`scripts/test-size-stock.mjs`.
 
 ## Browsing: chips + departments
 
@@ -179,7 +270,7 @@ Product form:
 - Price: **8.24**
 - **Shipping checkbox: UNCHECKED** (no shipping)
 - Stock: **Unlimited**
-- Brand / Sizes / Scent: blank — a test item needs nothing else
+- Brand / Sizes / Scent / Gender: blank — a test item needs nothing else
 
 Untracked stock proves the Stripe checkout + order flow; it cannot
 prove the stock countdown — that comes with the first real tracked
@@ -214,3 +305,7 @@ perfume + deodorant, the department grouping helpers, and the
 non-destructive legacy edit. `scripts/test-shop-filters.mjs` covers
 the filtering + sorting helpers (manufacturers, filter composition,
 every sort key, Price-TBD placement, non-mutation).
+`scripts/test-size-stock.mjs` covers per-size stock + gender:
+normalization, precedence, the legacy id-2 guarantee, per-size
+placement gates and decrements on both commit paths, the admin
+stock endpoint's per-size mode, and the offer flow's size checks.

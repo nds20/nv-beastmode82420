@@ -61,6 +61,54 @@ never re-implements a rule; a bad value comes back as the server's
   `PRODUCT_PHOTOS` R2 binding on the deployment) surfaces as the
   form's error, not a crash.
 
+## Gender + size rows (per-size stock, 2026-11-10)
+
+Owner direction: pick a gender, and enter a quantity FOR EACH SIZE
+on one product (Small ×2, Medium ×2, Large ×2). The model behind
+it — `products.gender`, `products.size_inventory`, the derived
+fields, the precedence rules and the order/inventory semantics —
+is documented in `docs/CLOTHING.md` ("Sizes, gender & per-size
+stock"). What the form does:
+
+- **Gender** — a select next to Brand: `— None —`, **Men's**,
+  **Women's**, **Unisex**, **Kids**. It is shown ALWAYS, for every
+  category (one optional field; showing/hiding it by category
+  would only add surprise), and it never interacts with stock.
+  Payload: `gender` (the value or null).
+- **Size rows** replace the old comma-separated Sizes text input.
+  Each row is [size label][quantity][Remove], with an
+  **＋ Add a size** button and quick-add chips (**XS S M L XL
+  2XL**) that append a row (a chip for a size that already has a
+  row does nothing). A one-size product is just a single row
+  labeled "One Size". The rows ARE the stock: when at least one
+  row is filled in, the product is in per-size mode and the
+  Inventory radios below are replaced by a note (plus the
+  low-stock threshold, which then applies per size). With NO
+  rows, the product uses the legacy stock controls and the
+  payload omits `sizeInventory` entirely.
+- **Save-time validation** (clear errors at the top of the form,
+  before anything is sent): a row with a size but an empty
+  quantity → "Give every size a quantity — 0 is fine for sold
+  out."; a quantity that isn't a whole number names its size; a
+  size listed twice → an error naming the size; a row with a
+  quantity but no size name → finish it or remove it.
+- **Payload** (`buildProductPayload` / `sizeInventoryPayload` in
+  `adminApi.js`): filled rows → `sizeInventory: [{ size, qty }]`
+  (the server derives sizes + total stock; `stockQty` is sent
+  null). The free-text `sizes` field is no longer sent at all —
+  omitting it keeps a legacy product's stored size run untouched
+  on edit.
+- **Editing a legacy sized product** (sizes but no per-size map):
+  its sizes show as a read-only note — "Current sizes: Women's L
+  — add quantity rows to switch this product to per-size stock" —
+  and the rows start EMPTY. Switching modes is the deliberate act
+  of filling rows in; an unrelated edit can never convert the
+  product. Editing a per-size product prefills its rows from the
+  map. Removing EVERY row from a per-size product and saving
+  sends an explicit empty `sizeInventory`, which clears it back
+  to legacy mode (the legacy stock controls reappear, prefilled
+  with the last total).
+
 ## Shipping vs No shipping (the headline choice)
 
 The Shipping control is **one checkbox** over the product's
@@ -85,7 +133,9 @@ fine either way: the shipping defaults in `_lib/shipping.js` apply.
 
 ## Inventory group
 
-Two radios over `stockQty`:
+Applies when the product has NO size rows (with rows, the rows are
+the stock — see "Gender + size rows" above). Two radios over
+`stockQty`:
 
 - **Unlimited (don't track stock)** — `stockQty: null`. The product
   sells as products always have: no count, no sold-out, no
@@ -96,7 +146,9 @@ Two radios over `stockQty`:
   silently turning the product Unlimited.
 
 Quick count changes between full edits can still go through
-`PATCH /api/admin/products/:id/stock` (see `docs/INVENTORY.md`).
+`PATCH /api/admin/products/:id/stock` (see `docs/INVENTORY.md`) —
+for a per-size product that endpoint requires a `size` (see
+`docs/CLOTHING.md`).
 
 ## The tracked → untracked + photo edge
 

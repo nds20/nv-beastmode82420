@@ -380,21 +380,57 @@ function blankToNull(value) {
 }
 
 /**
+ * The editor's size rows -> the payload's sizeInventory field
+ * (2026-11-10, per-size stock):
+ *   - rows filled in -> the [{ size, qty }] array (the server
+ *     derives the product's sizes and total stock from it);
+ *   - editing a product that HAD per-size stock with every row
+ *     removed -> an explicit EMPTY array, which is the server's
+ *     "clear back to legacy mode" signal (normalizeProduct's
+ *     precedence rule in _lib/validate.js);
+ *   - otherwise -> undefined: the field is OMITTED, so the stored
+ *     mode (legacy or per-size) is kept exactly as it was.
+ * The editor validates rows before saving (every row has a size
+ * and a whole-number quantity, no duplicates), so Number() here
+ * always lands on the validated integer.
+ */
+function sizeInventoryPayload(form) {
+  const rows = (Array.isArray(form.sizeRows) ? form.sizeRows : [])
+    .map((r) => ({
+      size: String(r.size || '').trim(),
+      qty: String(r.qty ?? '').trim(),
+    }))
+    .filter((r) => r.size !== '' || r.qty !== '');
+  if (rows.length > 0) {
+    return rows.map((r) => ({ size: r.size, qty: Number(r.qty) }));
+  }
+  if (form.hadSizeInventory) return [];
+  return undefined;
+}
+
+/**
  * Shape the editor's form state into the JSON payload. Numeric fields
  * go as the strings the admin typed (or null when blank): the server
  * parses and range-checks them (parseOptionalNumber & friends in
  * _lib/validate.js), so a typo surfaces as the server's 400 message
  * rather than being silently coerced here.
  *
- * Clothing (2026-11-09): the payload carries brand, sizes (the raw
- * comma-separated text — the server's parseSizes owns splitting,
- * trimming and caps) and scent. The retired smoke-shop fields (thc,
- * strength, effects, unit) are deliberately NOT sent: on update,
- * normalizeProduct's pick() falls back to the stored row for any
- * field the body omits, so editing a legacy product never wipes its
- * stored legacy values; on create they default (null / '' / []).
+ * Clothing (2026-11-09): the payload carries brand and scent. The
+ * retired smoke-shop fields (thc, strength, effects, unit) are
+ * deliberately NOT sent: on update, normalizeProduct's pick() falls
+ * back to the stored row for any field the body omits, so editing a
+ * legacy product never wipes its stored legacy values; on create
+ * they default (null / '' / []).
+ *
+ * Sizes (2026-11-10): the free-text `sizes` field is no longer sent
+ * either — the editor's size ROWS own the size data now, through
+ * sizeInventory above. Omitting `sizes` keeps a legacy product's
+ * stored size run untouched on edit; a product only gains, changes
+ * or clears sizes by saving size rows.
  */
 function buildProductPayload(form) {
+  const sizeInventory = sizeInventoryPayload(form);
+  const perSize = Array.isArray(sizeInventory) && sizeInventory.length > 0;
   return {
     name: String(form.name || '').trim(),
     subtitle: String(form.subtitle || '').trim(),
@@ -402,7 +438,8 @@ function buildProductPayload(form) {
     type: String(form.type || '').trim(),
     price: blankToNull(form.price),
     brand: blankToNull(form.brand),
-    sizes: String(form.sizesText || ''),
+    gender: form.gender ? form.gender : null,
+    ...(sizeInventory !== undefined ? { sizeInventory } : {}),
     scent: blankToNull(form.scent),
     // Best Offer (2026-11-10): condition ('new' | 'used') and the
     // acceptsOffers switch ride the same JSON step. For a NEW item
@@ -415,7 +452,15 @@ function buildProductPayload(form) {
     lengthIn: blankToNull(form.lengthIn),
     widthIn: blankToNull(form.widthIn),
     heightIn: blankToNull(form.heightIn),
-    stockQty: form.stockMode === 'tracked' ? blankToNull(form.stockQty) : null,
+    // Per-size mode: the size rows are the stock, so stockQty is
+    // sent null (the server derives the total from sizeInventory
+    // and ignores this field for stock purposes). Legacy mode keeps
+    // the radio-driven behavior.
+    stockQty: perSize
+      ? null
+      : form.stockMode === 'tracked'
+        ? blankToNull(form.stockQty)
+        : null,
     lowStockThreshold: blankToNull(form.lowStockThreshold),
     freeShipping: Boolean(form.freeShipping),
   };

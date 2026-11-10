@@ -57,6 +57,16 @@
 //                   NULL) and `accepts_offers` (INTEGER 1/0/NULL) —
 //                   rowToProduct computes the effective acceptsOffers
 //                   boolean from them (see productAcceptsOffers).
+//                   Per-size stock (2026-11-10) adds `gender` (TEXT
+//                   NULL: 'mens' | 'womens' | 'unisex' | 'kids') and
+//                   `size_inventory` (TEXT NULL holding a JSON object
+//                   mapping size label -> quantity). A non-NULL
+//                   size_inventory switches the product to per-size
+//                   stock mode: rowToProduct derives `sizes` from
+//                   its keys and `stockQty` from their sum, and
+//                   stock_qty is kept written as that sum so the
+//                   admin list and low-stock logic keep working
+//                   (see docs/CLOTHING.md).
 //   app_settings    key/value rows; currently holds the generated
 //                   customer-token signing secret (see
 //                   getCustomerTokenSecret below).
@@ -71,6 +81,7 @@ import {
   base64Encode,
   adminCredentials,
 } from './auth.js';
+import { parseGender, parseSizeInventory } from './validate.js';
 
 function parseJsonColumn(value, fallback) {
   if (value === null || value === undefined) return fallback;
@@ -362,6 +373,56 @@ export function ensureOffersTable(env) {
   return offersTablePromise;
 }
 
+// ----- Size-stock columns (lazy ensure) ---------------------------------------
+//
+// Per-size stock + gender (owner direction 2026-11-10 — see
+// docs/CLOTHING.md "Sizes, gender & per-size stock"). Same lazy
+// PRAGMA pattern as the ensures above. Products gain:
+//   gender         TEXT NULL — 'mens' | 'womens' | 'unisex' |
+//                  'kids'; NULL = not stated.
+//   size_inventory TEXT NULL — a JSON object mapping size label to
+//                  quantity, {"Small":2,"Medium":2,"Large":2}.
+//                  NULL = legacy stock mode (the sizes list + the
+//                  single stock_qty rule the product). A non-NULL
+//                  map is the product's stock: rowToProduct derives
+//                  sizes/stockQty from it, and every write path
+//                  keeps stock_qty written as the map's sum.
+// cloudflare/schema.sql carries both columns for fresh installs and
+// cloudflare/migration-size-stock.sql documents the same ALTERs.
+
+const SIZE_STOCK_COLUMNS = {
+  products: [
+    ['gender', 'TEXT'],
+    ['size_inventory', 'TEXT'],
+  ],
+};
+
+let sizeStockColumnsPromise = null;
+
+export function ensureSizeStockColumns(env) {
+  if (!sizeStockColumnsPromise) {
+    sizeStockColumnsPromise = (async () => {
+      for (const [table, columns] of Object.entries(SIZE_STOCK_COLUMNS)) {
+        // eslint-disable-next-line no-await-in-loop
+        const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+        const existing = new Set((results || []).map((row) => row.name));
+        for (const [name, type] of columns) {
+          if (!existing.has(name)) {
+            // eslint-disable-next-line no-await-in-loop
+            await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run();
+          }
+        }
+      }
+      return true;
+    })().catch((err) => {
+      // Same retry rule as the other ensures: never poison the isolate.
+      sizeStockColumnsPromise = null;
+      throw err;
+    });
+  }
+  return sizeStockColumnsPromise;
+}
+
 // ----- Products ---------------------------------------------------------------
 
 /**
@@ -385,6 +446,17 @@ export function productAcceptsOffers(row) {
 
 export function rowToProduct(row) {
   if (!row) return null;
+  // Per-size stock (2026-11-10): a stored size_inventory map is the
+  // product's stock. sizes derive from its keys (canonical order —
+  // parseSizeInventory owns it) and stockQty from their sum, so
+  // every existing surface that reads sizes/stockQty/available
+  // keeps working unchanged. Legacy rows (size_inventory NULL)
+  // read exactly as before. `sizeInventory` exposes the canonical
+  // [{ size, qty }] array, or null in legacy mode.
+  const sizeInventory = parseSizeInventory(row.size_inventory);
+  const derivedStockQty = sizeInventory
+    ? sizeInventory.reduce((sum, entry) => sum + entry.qty, 0)
+    : null;
   return {
     id: row.id,
     name: row.name,
@@ -408,9 +480,19 @@ export function rowToProduct(row) {
     // `available` is computed here so every client agrees: untracked
     // products are always available; tracked ones are available while
     // at least one unit remains.
-    stockQty: row.stock_qty != null ? Number(row.stock_qty) : null,
+    stockQty:
+      derivedStockQty !== null
+        ? derivedStockQty
+        : row.stock_qty != null
+          ? Number(row.stock_qty)
+          : null,
     lowStockThreshold: row.low_stock_threshold != null ? Number(row.low_stock_threshold) : null,
-    available: row.stock_qty == null ? true : Number(row.stock_qty) > 0,
+    available:
+      derivedStockQty !== null
+        ? derivedStockQty > 0
+        : row.stock_qty == null
+          ? true
+          : Number(row.stock_qty) > 0,
     // Free shipping (0/1 in the table): the product is excluded from
     // the shipping package math entirely (see _lib/shipping.js).
     freeShipping: row.free_shipping ? true : false,
@@ -418,7 +500,16 @@ export function rowToProduct(row) {
     // is a JSON array in TEXT — exposed as an array, [] when the
     // column is NULL/empty (one-size / not applicable).
     brand: row.brand != null && row.brand !== '' ? row.brand : null,
-    sizes: parseJsonColumn(row.sizes, []),
+    sizes: sizeInventory
+      ? sizeInventory.map((entry) => entry.size)
+      : parseJsonColumn(row.sizes, []),
+    // Per-size stock + gender (2026-11-10): sizeInventory is the
+    // canonical [{ size, qty }] array or null (legacy mode);
+    // gender is the stored value re-validated on the way out
+    // (a hand-written row can hold anything) — null when unset or
+    // unrecognized.
+    sizeInventory,
+    gender: parseGender(row.gender),
     scent: row.scent != null && row.scent !== '' ? row.scent : null,
     // Best Offer (2026-11-10): condition is the raw stated state —
     // 'new' | 'used' | null (unspecified; the shop's disclosure
@@ -438,13 +529,14 @@ export function rowToProduct(row) {
 }
 
 const PRODUCT_COLUMNS =
-  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent, condition, accepts_offers';
+  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent, condition, accepts_offers, gender, size_inventory';
 
 export async function listProducts(env) {
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
   await ensureOffersColumns(env);
+  await ensureSizeStockColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY id ASC`
   ).all();
@@ -458,6 +550,7 @@ export async function getProduct(env, id) {
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
   await ensureOffersColumns(env);
+  await ensureSizeStockColumns(env);
   const row = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`
   )
@@ -496,6 +589,19 @@ function productParams(data) {
     // (null = no explicit choice, the computed default applies).
     data.condition === 'new' || data.condition === 'used' ? data.condition : null,
     data.acceptsOffers === 1 || data.acceptsOffers === 0 ? data.acceptsOffers : null,
+    // Per-size stock + gender (2026-11-10): gender stores the
+    // validated value or NULL; sizeInventory stores as a JSON
+    // object string in canonical order, or NULL (legacy mode).
+    // When a map is stored, normalizeProduct has already derived
+    // data.stockQty as its sum and data.sizes as its keys, so the
+    // stock_qty / sizes columns written above stay consistent with
+    // the map by construction.
+    parseGender(data.gender),
+    Array.isArray(data.sizeInventory) && data.sizeInventory.length > 0
+      ? JSON.stringify(
+          Object.fromEntries(data.sizeInventory.map((entry) => [entry.size, entry.qty]))
+        )
+      : null,
   ];
 }
 
@@ -504,9 +610,10 @@ export async function createProduct(env, data) {
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
   await ensureOffersColumns(env);
+  await ensureSizeStockColumns(env);
   const result = await env.DB.prepare(
-    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent, condition, accepts_offers)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent, condition, accepts_offers, gender, size_inventory)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(...productParams(data))
     .run();
@@ -520,6 +627,7 @@ export async function updateProduct(env, id, data) {
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
   await ensureOffersColumns(env);
+  await ensureSizeStockColumns(env);
   await env.DB.prepare(
     `UPDATE products
      SET name = ?, subtitle = ?, category = ?, type = ?, thc = ?, strength = ?,
@@ -527,7 +635,7 @@ export async function updateProduct(env, id, data) {
          weight_oz = ?, length_in = ?, width_in = ?, height_in = ?,
          stock_qty = ?, low_stock_threshold = ?, free_shipping = ?,
          brand = ?, sizes = ?, scent = ?,
-         condition = ?, accepts_offers = ?
+         condition = ?, accepts_offers = ?, gender = ?, size_inventory = ?
      WHERE id = ?`
   )
     .bind(...productParams(data), pid)
@@ -566,6 +674,92 @@ export async function decrementProductStock(env, id, qty) {
   )
     .bind(Math.max(0, Math.trunc(Number(qty)) || 0), pid)
     .run();
+}
+
+// ----- Per-size stock writes (2026-11-10) -------------------------------------
+//
+// A size_inventory product keeps TWO written forms of its stock:
+// the map itself and stock_qty as the map's sum (the invariant
+// every other surface — admin list, low-stock, availability —
+// reads). These helpers are the only writers that change one size,
+// and both rewrite the pair together so the invariant can never
+// drift: the map is re-read fresh, the one size adjusted (floored
+// at 0), and stock_qty recomputed as the new sum, in a single
+// UPDATE. The read-modify-write is not one atomic statement like
+// decrementProductStock's MAX() update — the same accepted-hair
+// caveat applies (the placement gate in validate.js is the real
+// control; two payments racing the last unit of a size can oversell
+// by that hair, and the stored counts can never go negative).
+
+/** The stored size map for a product row, or null in legacy mode. */
+function storedSizeMap(row) {
+  const entries = parseSizeInventory(row && row.size_inventory);
+  if (!entries) return null;
+  return Object.fromEntries(entries.map((entry) => [entry.size, entry.qty]));
+}
+
+async function writeSizeMap(env, pid, map) {
+  const sum = Object.values(map).reduce((total, qty) => total + qty, 0);
+  await env.DB.prepare(
+    'UPDATE products SET size_inventory = ?, stock_qty = ? WHERE id = ?'
+  )
+    .bind(JSON.stringify(map), sum, pid)
+    .run();
+}
+
+/**
+ * Decrement ONE size of a per-size product by `qty` (floored at 0)
+ * and re-derive stock_qty as the map's new sum. Called only from
+ * _lib/inventory.js's applyOrderInventory at the payment commit
+ * points. A size the map does not carry changes nothing (placement
+ * validation makes that unreachable; the sum invariant still
+ * holds). A product that has since left per-size mode falls back
+ * to the plain total decrement.
+ */
+export async function decrementProductSizeStock(env, id, size, qty) {
+  const pid = Number(id);
+  if (!Number.isFinite(pid)) return;
+  await ensureInventoryColumns(env);
+  await ensureSizeStockColumns(env);
+  const row = await env.DB.prepare(
+    'SELECT size_inventory FROM products WHERE id = ?'
+  )
+    .bind(pid)
+    .first();
+  const map = storedSizeMap(row);
+  if (!map) {
+    await decrementProductStock(env, pid, qty);
+    return;
+  }
+  if (Object.prototype.hasOwnProperty.call(map, size)) {
+    map[size] = Math.max(0, map[size] - (Math.max(0, Math.trunc(Number(qty)) || 0)));
+  }
+  await writeSizeMap(env, pid, map);
+}
+
+/**
+ * Set ONE size's absolute count on a per-size product (the admin
+ * stock endpoint's per-size mode) and re-derive stock_qty as the
+ * sum. The caller validates that the product is in per-size mode
+ * and the size exists; an unknown size is a no-op write here. Returns
+ * the fresh product.
+ */
+export async function setProductSizeStock(env, id, size, qty) {
+  const pid = Number(id);
+  if (!Number.isFinite(pid)) return null;
+  await ensureInventoryColumns(env);
+  await ensureSizeStockColumns(env);
+  const row = await env.DB.prepare(
+    'SELECT size_inventory FROM products WHERE id = ?'
+  )
+    .bind(pid)
+    .first();
+  const map = storedSizeMap(row);
+  if (map && Object.prototype.hasOwnProperty.call(map, size)) {
+    map[size] = Math.max(0, Math.trunc(Number(qty)) || 0);
+    await writeSizeMap(env, pid, map);
+  }
+  return getProduct(env, pid);
 }
 
 /** Point a product at a new image URL (used after an R2 photo upload). */

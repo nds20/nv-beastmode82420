@@ -30,6 +30,24 @@ export function categoryLabel(category) {
     .join(' ');
 }
 
+// Genders (2026-11-10, per-size stock build) — mirror GENDERS /
+// GENDER_LABELS in functions/api/_lib/validate.js (the API stores
+// exactly these ids; anything else reads as "not stated" and never
+// renders). The editor's Gender select, the card and the detail
+// page all read labels from here.
+export const GENDERS = [
+  { value: 'mens', label: "Men's" },
+  { value: 'womens', label: "Women's" },
+  { value: 'unisex', label: 'Unisex' },
+  { value: 'kids', label: 'Kids' },
+];
+export const GENDER_LABELS = Object.fromEntries(GENDERS.map((g) => [g.value, g.label]));
+
+/** Display label for a gender id; '' when unset or unrecognized. */
+export function genderLabel(gender) {
+  return GENDER_LABELS[gender] || '';
+}
+
 // Departments group the categories for the shop page's grouped
 // browsing mode (no chip selected). Order here is display order.
 export const DEPARTMENTS = [

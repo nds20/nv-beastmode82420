@@ -3,8 +3,15 @@ import { Link, useParams } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { priceLabel } from '../components/ProductCard';
-import { isSoldOut, isLowStock, qtyCapFor } from '../context/CartContext';
-import { categoryLabel } from '../lib/departments';
+import {
+  isSoldOut,
+  isLowStock,
+  qtyCapFor,
+  qtyCapForSize,
+  sizeInventoryOf,
+  LOW_STOCK_THRESHOLD,
+} from '../context/CartContext';
+import { categoryLabel, genderLabel } from '../lib/departments';
 import { submitOffer, saveOfferToken } from '../services/offersApi';
 
 // Product detail — route "/shop/product/:id".
@@ -45,13 +52,25 @@ export default function ProductDetail() {
   const tile = Array.isArray(product.tile) ? product.tile : ['#374151', '#111827'];
   const tbd = product.price == null;
   // Inventory (2026-11-09): tracked products cap the stepper at the
-  // shelf count and disable Add entirely at 0.
+  // shelf count and disable Add entirely at 0. Per-size products
+  // (2026-11-10): the cap follows the SELECTED size's own count,
+  // and the low-stock note is per-size too (in the picker below) —
+  // the product-total note would name a number no single size has.
   const soldOut = isSoldOut(product);
-  const lowStock = isLowStock(product);
-  const qtyCap = qtyCapFor(product);
+  const perSize = sizeInventoryOf(product);
+  const lowStock = !perSize && isLowStock(product);
   const sizes = Array.isArray(product.sizes) ? product.sizes : [];
   const needsSize = sizes.length > 0;
+  const qtyCap = perSize && size ? qtyCapForSize(product, size) : qtyCapFor(product);
+  const lowThreshold =
+    product.lowStockThreshold != null ? product.lowStockThreshold : LOW_STOCK_THRESHOLD;
   const addDisabled = soldOut || (needsSize && !size);
+
+  const pickSize = (s) => {
+    setSize(s);
+    // Changing size re-caps the stepper at the new size's count.
+    setQty((q) => Math.min(q, qtyCapForSize(product, s)));
+  };
 
   const onAdd = () => {
     if (addDisabled) return;
@@ -120,6 +139,12 @@ export default function ProductDetail() {
                 <span className="pd-value">{product.brand}</span>
               </div>
             )}
+            {genderLabel(product.gender) && (
+              <div className="pd-spec">
+                <span className="pd-label">Gender</span>
+                <span className="pd-value">{genderLabel(product.gender)}</span>
+              </div>
+            )}
             {product.scent && (
               <div className="pd-spec">
                 <span className="pd-label">Scent</span>
@@ -144,17 +169,37 @@ export default function ProductDetail() {
             <div className="pd-sizes">
               <span className="pd-label">Size</span>
               <div className="size-picker" role="group" aria-label="Choose a size">
-                {sizes.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    className={`size-btn${size === s ? ' selected' : ''}`}
-                    aria-pressed={size === s}
-                    onClick={() => setSize(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
+                {sizes.map((s) => {
+                  // Per-size stock (2026-11-10): a size at 0 is
+                  // disabled and labeled Sold out; a size at or
+                  // under the low-stock threshold shows its count.
+                  // Legacy products have no per-size counts — their
+                  // buttons render exactly as before.
+                  const entry = perSize
+                    ? perSize.find((e) => e.size === s)
+                    : null;
+                  const remaining = entry ? entry.qty : null;
+                  const sizeOut = remaining !== null && remaining <= 0;
+                  const sizeLow =
+                    remaining !== null && remaining > 0 && remaining <= lowThreshold;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`size-btn${size === s ? ' selected' : ''}`}
+                      aria-pressed={size === s}
+                      disabled={sizeOut}
+                      onClick={() => pickSize(s)}
+                    >
+                      {s}
+                      {sizeOut
+                        ? ' · Sold out'
+                        : sizeLow
+                          ? ` · Only ${remaining} left`
+                          : ''}
+                    </button>
+                  );
+                })}
               </div>
               {!size && <p className="form-error">Pick a size</p>}
             </div>

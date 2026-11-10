@@ -75,7 +75,15 @@ CREATE TABLE IF NOT EXISTS products (
   -- in _lib/db.js applies: ON for priced items), 1 = offers on,
   -- 0 = offers off. See docs/OFFERS.md.
   condition TEXT,
-  accepts_offers INTEGER
+  accepts_offers INTEGER,
+  -- Per-size stock + gender (2026-11-10): gender NULL = not stated
+  -- ('mens' | 'womens' | 'unisex' | 'kids' when set);
+  -- size_inventory is a JSON object mapping size label -> quantity
+  -- ('{"Small":2,"Medium":2}'), NULL = legacy stock mode (the sizes
+  -- list + the single stock_qty rule the product). See
+  -- docs/CLOTHING.md "Sizes, gender & per-size stock".
+  gender TEXT,
+  size_inventory TEXT
 );
 
 CREATE TABLE IF NOT EXISTS orders (

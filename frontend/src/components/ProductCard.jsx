@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { isSoldOut, isLowStock } from '../context/CartContext';
+import { genderLabel } from '../lib/departments';
 
 export const money = (n) => `$${Number(n).toFixed(2)}`;
 export const priceLabel = (p) => (p.price == null ? 'Price TBD' : money(p.price));
@@ -47,6 +48,9 @@ export default function ProductCard({ product }) {
       <div className="card-info">
         {product.type ? <p className="card-type">{product.type}</p> : null}
         {product.brand ? <p className="card-brand">{product.brand}</p> : null}
+        {genderLabel(product.gender) ? (
+          <p className="card-brand">{genderLabel(product.gender)}</p>
+        ) : null}
         <h3 className="card-name">{product.name}</h3>
         <p className="card-sub">{product.subtitle}</p>
         {sizes.length > 0 && (

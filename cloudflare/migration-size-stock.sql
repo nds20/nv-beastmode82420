@@ -1,0 +1,43 @@
+-- Shop 824 — per-size stock + gender columns for EXISTING databases (2026-11-10).
+--
+-- Owner direction 2026-11-10: when adding a product, the admin picks
+-- a gender and enters a quantity FOR EACH SIZE on one product —
+-- e.g. Small x2, Medium x2, Large x2 — and each size counts down
+-- and sells out independently. Products gain:
+--
+--   products.gender          TEXT NULL — whose fit the product is:
+--                            'mens' | 'womens' | 'unisex' | 'kids'.
+--                            NULL = not stated.
+--   products.size_inventory  TEXT NULL — a JSON object mapping size
+--                            label to quantity, e.g.
+--                            '{"Small":2,"Medium":2,"Large":2}'.
+--                            NULL = LEGACY stock mode: the product's
+--                            sizes list + single stock_qty rule it,
+--                            exactly as before this build. A non-NULL
+--                            map switches the product to per-size
+--                            mode: sizes derive from the map's keys,
+--                            stock_qty is kept written as the map's
+--                            sum, placement gates per size, and the
+--                            payment commit decrements only the
+--                            ordered size. Nothing auto-converts:
+--                            existing products stay NULL (legacy)
+--                            until the owner saves size rows for
+--                            them in the editor. See docs/CLOTHING.md.
+--
+-- Fresh installs get these from cloudflare/schema.sql. This file is
+-- for a database that already exists (the live beastmode82420-db).
+--
+-- NOTE: the application ALSO adds these columns lazily at runtime
+-- (ensureSizeStockColumns() in functions/api/_lib/db.js), so in
+-- practice the live database gains them on the first request after
+-- this code deploys even if nobody runs this file. These ALTERs are
+-- the documented, inspectable form of the same change — run them
+-- once; if they fail with "duplicate column name", the lazy ensure
+-- already did the work and that is fine.
+--
+-- HOW TO APPLY (from the repo root, Nicholas's Cloudflare login):
+--   npx wrangler d1 execute beastmode82420-db --remote --file=cloudflare/migration-size-stock.sql
+-- or paste the statements into the D1 console for beastmode82420-db.
+
+ALTER TABLE products ADD COLUMN gender TEXT;
+ALTER TABLE products ADD COLUMN size_inventory TEXT;

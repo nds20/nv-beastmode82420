@@ -28,12 +28,26 @@
 //     in db.js. Two payments racing for the last unit can oversell by
 //     that hair — accepted and documented here — but the stored count
 //     can never go negative.
+//   * Per-size mode (2026-11-10): a product whose size_inventory
+//     map is set carries its stock PER SIZE instead. Its stockQty
+//     reads as the map's sum (so isTracked/available/low-stock work
+//     unchanged), placement gates each line against its own size's
+//     count (validate.js), and the commit decrement takes only the
+//     ordered size down, re-deriving the sum (db.js
+//     decrementProductSizeStock). Legacy products never enter this
+//     path — see docs/CLOTHING.md.
 //
 // Restocking / corrections are the admin's job via
 // PATCH /api/admin/products/:id/stock (set an absolute count, or
 // adjust by a delta) — see docs/INVENTORY.md.
 
-import { getProduct, getOrder, decrementProductStock, setOrderInventoryApplied } from './db.js';
+import {
+  getProduct,
+  getOrder,
+  decrementProductStock,
+  decrementProductSizeStock,
+  setOrderInventoryApplied,
+} from './db.js';
 import { DEFAULT_LOW_STOCK_THRESHOLD } from './validate.js';
 
 export { DEFAULT_LOW_STOCK_THRESHOLD };
@@ -53,6 +67,31 @@ export function isLowStock(product) {
 }
 
 /**
+ * Per-size stock (2026-11-10): true when the product is in per-size
+ * mode — its sizeInventory map IS its stock. Shared by the order
+ * gate, the offer flows and the admin stock endpoint so the mode
+ * test lives in exactly one place.
+ */
+export function hasSizeInventory(product) {
+  return (
+    Boolean(product) &&
+    Array.isArray(product.sizeInventory) &&
+    product.sizeInventory.length > 0
+  );
+}
+
+/**
+ * The remaining count for ONE size of a per-size product, or null
+ * when the product is not in per-size mode or does not carry that
+ * size. (A carried size can legitimately read 0 — sold out.)
+ */
+export function sizeQtyRemaining(product, size) {
+  if (!hasSizeInventory(product)) return null;
+  const entry = product.sizeInventory.find((e) => e.size === size);
+  return entry ? entry.qty : null;
+}
+
+/**
  * Apply an order's stock decrement exactly once. `order` is a
  * rowToOrder shape (items carry productId + qty). Returns the fresh
  * order. Safe to call from both commit points and on webhook
@@ -64,8 +103,20 @@ export async function applyOrderInventory(env, order) {
     // eslint-disable-next-line no-await-in-loop
     const product = await getProduct(env, item.productId);
     if (isTracked(product)) {
-      // eslint-disable-next-line no-await-in-loop
-      await decrementProductStock(env, product.id, item.qty);
+      if (hasSizeInventory(product) && item.size) {
+        // Per-size mode: only the ordered size counts down (the
+        // stock_qty sum follows it — see decrementProductSizeStock).
+        // eslint-disable-next-line no-await-in-loop
+        await decrementProductSizeStock(env, product.id, item.size, item.qty);
+      } else {
+        // Legacy mode — and the defensive corner of a per-size
+        // product ordered without a size: unreachable through the
+        // API (placement requires a size for per-size products),
+        // but if a hand-made order ever lands here the total still
+        // counts down, exactly as it always has.
+        // eslint-disable-next-line no-await-in-loop
+        await decrementProductStock(env, product.id, item.qty);
+      }
     }
   }
   await setOrderInventoryApplied(env, order.id);

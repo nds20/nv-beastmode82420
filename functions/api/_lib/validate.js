@@ -131,6 +131,107 @@ function parseSizes(value) {
   return out;
 }
 
+// Gender (2026-11-10, per-size stock build): whose fit the product
+// is — 'mens' | 'womens' | 'unisex' | 'kids' | null (not stated).
+// Input is FORGIVING like sizes (owner direction: normalize, don't
+// reject): case is folded and an unknown value becomes null rather
+// than a 400 — a hand-typed admin form should degrade to "not
+// stated", never fail the save over a display attribute.
+export const GENDERS = ['mens', 'womens', 'unisex', 'kids'];
+export const GENDER_LABELS = {
+  mens: "Men's",
+  womens: "Women's",
+  unisex: 'Unisex',
+  kids: 'Kids',
+};
+
+export function parseGender(value) {
+  if (value === undefined || value === null) return null;
+  const gender = String(value).trim().toLowerCase();
+  return GENDERS.includes(gender) ? gender : null;
+}
+
+// Per-size stock (2026-11-10, owner direction: "allow me to select a
+// size… and enter a quantity for each size… I can add them all at
+// once as one product"). size_inventory is stored as a JSON object
+// mapping size label -> quantity, e.g. {"Small":2,"Medium":2,
+// "Large":2}; NULL = the product is NOT in per-size mode and the
+// legacy sizes list + single stockQty rule it (see below).
+//
+// parseSizeInventory normalizes every accepted input shape — the
+// stored object map, an array of { size, qty } (the API/editor
+// shape), or either JSON-encoded as a string (multipart forms) —
+// into ONE canonical form: an array of { size, qty } in canonical
+// size order, or null when there is nothing usable (the product is
+// then in legacy mode). Rules, all normalizing rather than
+// rejecting (same philosophy as parseSizes):
+//   * size labels are trimmed and capped at MAX_SIZE_LENGTH;
+//   * duplicates fold case-insensitively, FIRST casing (and first
+//     valid entry) wins — an entry dropped for a bad qty does not
+//     claim its size's slot;
+//   * qty must be a whole number 0..9999, else the entry is dropped
+//     (0 is legitimate: the size exists but is sold out);
+//   * at most MAX_SIZES entries;
+//   * an empty result is null — "no per-size stock", never an empty
+//     map that would strand the product with no sizes at all.
+export const MAX_SIZE_QTY = 9999;
+
+// Canonical clothing size order: known sizes sort by this list
+// (case-insensitive); unknown labels keep their input order after
+// the known ones (Array.prototype.sort is stable).
+export const CANONICAL_SIZE_ORDER = [
+  'XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'One Size',
+];
+const SIZE_RANK = new Map(
+  CANONICAL_SIZE_ORDER.map((s, i) => [s.toLowerCase(), i])
+);
+function sizeRank(size) {
+  const rank = SIZE_RANK.get(String(size).toLowerCase());
+  return rank === undefined ? CANONICAL_SIZE_ORDER.length : rank;
+}
+
+export function parseSizeInventory(value) {
+  if (value === undefined || value === null || value === '') return null;
+  let parsed = value;
+  if (typeof value === 'string') {
+    // Multipart forms send the map/array JSON-encoded (the
+    // parseEffects convention). A string that is not JSON cannot
+    // carry quantities — treat it as "not per-size" rather than
+    // inventing counts.
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  let entries = [];
+  if (Array.isArray(parsed)) {
+    for (const entry of parsed) {
+      if (entry && typeof entry === 'object') entries.push([entry.size, entry.qty]);
+    }
+  } else if (parsed && typeof parsed === 'object') {
+    entries = Object.entries(parsed);
+  } else {
+    return null;
+  }
+  const claimed = new Set();
+  const out = [];
+  for (const [rawSize, rawQty] of entries) {
+    const size = String(rawSize == null ? '' : rawSize).trim().slice(0, MAX_SIZE_LENGTH);
+    if (!size) continue;
+    const qty = Number(rawQty);
+    if (!Number.isInteger(qty) || qty < 0 || qty > MAX_SIZE_QTY) continue;
+    const key = size.toLowerCase();
+    if (claimed.has(key)) continue;
+    claimed.add(key);
+    out.push({ size, qty });
+    if (out.length >= MAX_SIZES) break;
+  }
+  if (out.length === 0) return null;
+  out.sort((a, b) => sizeRank(a.size) - sizeRank(b.size));
+  return out;
+}
+
 // Scent (fragrance & body care, 2026-11-09): an optional free-text
 // note ("sandalwood & vanilla"). Trim + cap, never required, null
 // when blank — same treatment as brand.
@@ -232,6 +333,38 @@ export function normalizeProduct(body, existing) {
     ? null
     : String(unitInput).trim();
 
+  // ----- Gender + per-size stock (2026-11-10) ----------------------
+  // sizeInventory PRECEDENCE (the mode switch for the whole stock
+  // model — see docs/CLOTHING.md "Sizes, gender & per-size stock"):
+  //   * the payload CONTAINS sizeInventory (an array/object, a JSON
+  //     string, even an EMPTY array/object or null) -> it wins:
+  //     a non-empty normalized result switches the product to
+  //     per-size mode and sizes/stockQty inputs are IGNORED for
+  //     stock purposes (sizes derive from the map's keys, stockQty
+  //     from their sum); an empty result clears the product back to
+  //     legacy mode, where sizes/stockQty inputs rule again below.
+  //   * the payload OMITS sizeInventory -> the existing product's
+  //     mode is kept exactly as stored (base is a rowToProduct
+  //     shape, whose sizeInventory is the canonical array or null).
+  //     NOTHING auto-converts: a legacy product (e.g. the live
+  //     "Button down shirt", sizes ["Women's L"], stock 1) stays
+  //     legacy until the owner explicitly saves size rows for it.
+  // gender is independent of all of this — it can be set or cleared
+  // on any product without touching its stock mode.
+  const gender = parseGender(pick('gender'));
+  const sizeInventory = parseSizeInventory(
+    body.sizeInventory !== undefined ? body.sizeInventory : base.sizeInventory
+  );
+  let sizes;
+  let stockQty;
+  if (sizeInventory) {
+    sizes = sizeInventory.map((entry) => entry.size);
+    stockQty = sizeInventory.reduce((sum, entry) => sum + entry.qty, 0);
+  } else {
+    sizes = parseSizes(pick('sizes'));
+    stockQty = parseStockInteger(pick('stockQty'), 'stockQty', MAX_STOCK_QTY);
+  }
+
   return {
     name,
     subtitle: String(pick('subtitle') || '').trim(),
@@ -248,11 +381,13 @@ export function normalizeProduct(body, existing) {
     lengthIn: parseShippingMeasure(pick('lengthIn'), 'lengthIn', 108),
     widthIn: parseShippingMeasure(pick('widthIn'), 'widthIn', 108),
     heightIn: parseShippingMeasure(pick('heightIn'), 'heightIn', 108),
-    stockQty: parseStockInteger(pick('stockQty'), 'stockQty', MAX_STOCK_QTY),
+    stockQty,
     lowStockThreshold: parseStockInteger(pick('lowStockThreshold'), 'lowStockThreshold', MAX_STOCK_QTY),
     freeShipping: parseFreeShipping(pick('freeShipping')),
     brand: parseBrand(pick('brand')),
-    sizes: parseSizes(pick('sizes')),
+    sizes,
+    gender,
+    sizeInventory,
     scent: parseScent(pick('scent')),
     // Best Offer (2026-11-10): condition round-trips raw ('new' /
     // 'used' / null). acceptsOffers falls back to the existing
@@ -305,29 +440,62 @@ export async function normalizeOrder(body, getProductById, quoteShippingFn) {
     if (!Number.isInteger(qty) || qty < 1 || qty > 10) {
       fail(400, `Quantity for "${product.name}" must be a whole number between 1 and 10.`);
     }
-    // Inventory gate (2026-11-09): a TRACKED product (stockQty set)
-    // can never be ordered past its count. This is a placement-time
-    // check only — the count itself is decremented at the payment
-    // commit point (see _lib/inventory.js). Untracked products
-    // (stockQty null) skip this entirely, as they always have.
-    if (product.stockQty !== null && product.stockQty !== undefined && qty > product.stockQty) {
-      fail(400, `"${product.name}" only has ${product.stockQty} left.`);
-    }
-    // Clothing sizes (2026-11-09): when the product HAS a size run,
-    // the buyer's chosen size is snapshotted onto the order item so
-    // the shop knows which size to pull. A size the product does not
-    // offer is a 400 — the client cannot invent one. Products with
-    // no size run ignore any sent size (one-size items). Stock stays
-    // per-PRODUCT across sizes (see docs/CLOTHING.md).
-    const productSizes = Array.isArray(product.sizes) ? product.sizes : [];
+    // Stock gate + size snapshot. Two stock modes (2026-11-10):
+    //
+    // PER-SIZE products (product.sizeInventory present — the map IS
+    // the stock): the line MUST name one of the product's sizes, and
+    // qty may not exceed THAT SIZE's remaining count. The per-size
+    // gate replaces the per-product one for these lines — a size's
+    // remaining count is always <= the derived total, so the size
+    // check is strictly the tighter, correct gate, and its error
+    // names the size the buyer actually picked.
+    //
+    // LEGACY products: today's behavior, unchanged — the per-product
+    // tracked-count gate, and the size (when the product has a size
+    // run) is validated against the run and snapshotted. Placement
+    // never decrements in either mode; the count moves at the
+    // payment commit point (see _lib/inventory.js).
+    const sizeEntries =
+      Array.isArray(product.sizeInventory) && product.sizeInventory.length > 0
+        ? product.sizeInventory
+        : null;
     let size = null;
-    if (productSizes.length > 0) {
+    if (sizeEntries) {
       const wanted = raw && raw.size != null ? String(raw.size).trim() : '';
-      if (wanted) {
-        if (!productSizes.includes(wanted)) {
-          fail(400, `"${product.name}" is not offered in size "${wanted}".`);
+      if (!wanted) {
+        fail(400, `Please choose a size for "${product.name}".`);
+      }
+      const entry = sizeEntries.find((e) => e.size === wanted);
+      if (!entry) {
+        fail(400, `"${product.name}" is not offered in size "${wanted}".`);
+      }
+      if (qty > entry.qty) {
+        fail(400, `"${wanted}" only has ${entry.qty} left.`);
+      }
+      size = wanted;
+    } else {
+      // Inventory gate (2026-11-09): a TRACKED product (stockQty
+      // set) can never be ordered past its count. Untracked products
+      // (stockQty null) skip this entirely, as they always have.
+      if (product.stockQty !== null && product.stockQty !== undefined && qty > product.stockQty) {
+        fail(400, `"${product.name}" only has ${product.stockQty} left.`);
+      }
+      // Clothing sizes (2026-11-09): when the product HAS a size
+      // run, the buyer's chosen size is snapshotted onto the order
+      // item so the shop knows which size to pull. A size the
+      // product does not offer is a 400 — the client cannot invent
+      // one. Products with no size run ignore any sent size
+      // (one-size items). Stock stays per-PRODUCT across sizes for
+      // legacy products (see docs/CLOTHING.md).
+      const productSizes = Array.isArray(product.sizes) ? product.sizes : [];
+      if (productSizes.length > 0) {
+        const wanted = raw && raw.size != null ? String(raw.size).trim() : '';
+        if (wanted) {
+          if (!productSizes.includes(wanted)) {
+            fail(400, `"${product.name}" is not offered in size "${wanted}".`);
+          }
+          size = wanted;
         }
-        size = wanted;
       }
     }
     const unitPrice = round2(product.price);

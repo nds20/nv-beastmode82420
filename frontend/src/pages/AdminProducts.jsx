@@ -196,12 +196,17 @@ export default function AdminProducts() {
             // endpoint — see docs/INVENTORY.md).
             const threshold =
               p.lowStockThreshold != null ? p.lowStockThreshold : ADMIN_LOW_STOCK_DEFAULT;
+            // Per-size products (2026-11-10) show the breakdown —
+            // "S:2 · M:0 · L:2" — instead of just the total: the
+            // total alone would hide which sizes are actually gone.
             const stockLabel =
-              p.stockQty == null
-                ? 'Untracked'
-                : p.stockQty === 0
-                  ? 'Sold out'
-                  : `${p.stockQty} in stock${p.stockQty <= threshold ? ' · Low' : ''}`;
+              Array.isArray(p.sizeInventory) && p.sizeInventory.length > 0
+                ? p.sizeInventory.map((e) => `${e.size}:${e.qty}`).join(' · ')
+                : p.stockQty == null
+                  ? 'Untracked'
+                  : p.stockQty === 0
+                    ? 'Sold out'
+                    : `${p.stockQty} in stock${p.stockQty <= threshold ? ' · Low' : ''}`;
             return (
               <div className="order-row" key={p.id}>
                 <div>

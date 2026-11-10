@@ -518,6 +518,11 @@ body::before {
   border-radius: 10px; border: 1px solid rgba(238, 201, 94, .35);
   margin-top: 18px;
 }
+/* Project Gamma showcase (owner direction 2026-11-10): same concept
+   card as Queen Victoria; the concept art is portrait, so it is
+   width-capped and centered instead of running the full card width. */
+.hub-gamma-img { max-width: 430px; margin-left: auto; margin-right: auto; }
+.hub-gamma-meta { margin-top: 20px; font-size: 13.5px; letter-spacing: .4px; color: var(--muted); }
 @media (max-width: 640px) {
   .hub-concept-card { padding: 32px 16px 28px; }
   .hub-concept-pitch { font-size: 16px; }
@@ -568,6 +573,27 @@ body::before {
 .hub-donate-chip:hover { border-color: var(--gold); color: var(--gold); }
 .hub-donate-chip:active { transform: translateY(1px); }
 .hub-donate-chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #141414; }
+/* Highlighted project chip (Project Gamma, owner direction
+   2026-11-10): a gold wash + glow so the featured project reads as
+   the highlight even unselected; the pressed state still wins with
+   the solid gold fill. The badge is a tiny pill inside the chip and
+   follows currentColor so it works in both states. */
+.hub-donate-chip-highlight {
+  border-color: var(--gold); color: var(--gold);
+  background: linear-gradient(180deg, rgba(245, 185, 33, .30), rgba(245, 185, 33, .10));
+  box-shadow: 0 0 16px rgba(245, 185, 33, .35);
+}
+.hub-donate-chip-highlight:hover { color: var(--gold); box-shadow: 0 0 22px rgba(245, 185, 33, .5); }
+.hub-donate-chip-highlight[aria-pressed="true"] {
+  background: var(--gold); border-color: var(--gold); color: #141414;
+  box-shadow: 0 0 24px rgba(245, 185, 33, .55);
+}
+.hub-donate-chip-badge {
+  display: inline-block; vertical-align: 2px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  border: 1px solid currentColor; border-radius: 999px;
+  padding: 2px 7px; margin-right: 9px;
+}
 .hub-donate-chip-amount { min-width: 92px; font-size: 15.5px; }
 .hub-donate-custom { margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .hub-donate-custom label { font-size: 13.5px; color: var(--muted); }

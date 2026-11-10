@@ -27,9 +27,15 @@ export const DONATION_PROJECTS = [
   { slug: '824-shield', name: '824 Shield' },
   { slug: '824-bank', name: '824 Bank' },
   { slug: 'queen-victoria', name: 'Queen Victoria' },
+  // Added 2026-11-10 (owner direction): Project Gamma is the
+  // highlighted donation target; the Sports App joins the roster.
+  { slug: 'project-gamma', name: 'Project Gamma' },
+  { slug: 'sports-app', name: 'Sports App' },
 ];
 
-export const DEFAULT_DONATION_PROJECT = 'where-needed';
+// The highlighted default (owner direction 2026-11-10): a donation
+// with no project chosen aims at Project Gamma.
+export const DEFAULT_DONATION_PROJECT = 'project-gamma';
 
 const PROJECT_BY_SLUG = new Map(DONATION_PROJECTS.map((p) => [p.slug, p]));
 

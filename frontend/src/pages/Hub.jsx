@@ -17,9 +17,15 @@
 //      black fill, gold text). In the owner's order.
 //   4. About 824 — the owner's company blurb below the links, led by
 //      Friends With Benefits as the keystone product.
-//   5. Support 824 — the donate panel closing the page (owner
+//   5. The Queen Victoria concept showcase, then the Project Gamma
+//      showcase — the superhero-android dream project (owner
+//      direction 2026-11-10): plans only, so the panel carries no
+//      link — there is no public app or repo to point at.
+//   6. Support 824 — the donate panel closing the page (owner
 //      direction 2026-11-06): project chips + amount presets + a big
-//      gold Donate button into Stripe Checkout. Until STRIPE_SECRET_KEY
+//      gold Donate button into Stripe Checkout. Project Gamma is the
+//      highlighted chip and the default aim (owner direction
+//      2026-11-10). Until STRIPE_SECRET_KEY
 //      is set on the deployment (/api/payments/config reports
 //      stripeEnabled: false), the button wears an UNDER CONSTRUCTION
 //      tag and stays disabled; setting the key is the only switch.
@@ -49,6 +55,10 @@ const HUB_LINKS = [
 ];
 
 const DONATE_PROJECTS = [
+  // Project Gamma leads the list as the highlighted project (owner
+  // direction 2026-11-10) and is the default aim below.
+  { slug: 'project-gamma', label: 'Project Gamma', highlight: true },
+  { slug: 'sports-app', label: 'Sports App' },
   { slug: 'where-needed', label: "Where it's needed most" },
   { slug: 'friends-with-benefits', label: 'Friends With Benefits' },
   { slug: '824-shield', label: '824 Shield' },
@@ -94,7 +104,7 @@ function DonateSection() {
   // until the config probe proves Stripe is live.
   const [stripeLive, setStripeLive] = useState(null);
   const [stats, setStats] = useState(null);
-  const [project, setProject] = useState('where-needed');
+  const [project, setProject] = useState('project-gamma');
   const [preset, setPreset] = useState(824);
   const [custom, setCustom] = useState('');
   const [error, setError] = useState('');
@@ -163,9 +173,10 @@ function DonateSection() {
           Support 824
         </h2>
         <p className="hub-donate-pitch">
-          Every dollar goes straight into building the projects above — Friends
-          With Benefits, 824 Shield, 824 Bank, and the Queen Victoria prototype.
-          Pick a project, or send it where it&apos;s needed most.
+          Right now, donations highlight Project Gamma — the superhero android
+          on the drawing board. Every dollar fuels the build: Friends With
+          Benefits, the Sports App, 824 Shield, and everything above. Pick a
+          project, or send it where it&apos;s needed most.
         </p>
 
         {returned === '1' && (
@@ -194,10 +205,15 @@ function DonateSection() {
               <button
                 key={p.slug}
                 type="button"
-                className="hub-donate-chip"
+                className={p.highlight ? 'hub-donate-chip hub-donate-chip-highlight' : 'hub-donate-chip'}
                 aria-pressed={project === p.slug}
                 onClick={() => setProject(p.slug)}
               >
+                {p.highlight && (
+                  <span className="hub-donate-chip-badge" aria-hidden="true">
+                    ★ Featured
+                  </span>
+                )}
                 {p.label}
               </button>
             ))}
@@ -369,7 +385,7 @@ export default function Hub() {
           becomes our top product on beastmode82420.com.
         </p>
         <p>
-          Newest on the roster:{' '}
+          Also on the roster:{' '}
           <a href={SPORTS_APP_URL} target="_blank" rel="noreferrer">
             Sports App
           </a>{' '}
@@ -379,7 +395,16 @@ export default function Hub() {
           physicals, report cards, and everything else handed in. Every team
           gets its own logo and colors, all of it run on a five-role model —
           Site Admin, Coach, Verifier, Parent, and the General Public. Live
-          now, with the Irondequoit Junior Eagles as its first team.
+          now, with the Irondequoit Junior Eagles as its first organization.
+        </p>
+        <p>
+          Newest on the roster: Project Gamma — a superhero android on the
+          drawing board. Gamma is a guardian by design, built around a
+          Hero&apos;s Code — protect human life above all, never harm a person,
+          always only do good — with the 824-AI Engine as its mind and 824
+          Shield as its conscience: a moral firewall that can veto any action
+          that would hurt someone. It is plans in development tonight, and
+          every step of the climb is labeled honestly.
         </p>
         <p>
           And because 824 thinks in machines as well as software: the Queen Victoria,
@@ -419,6 +444,38 @@ export default function Hub() {
             height="679"
             loading="lazy"
           />
+        </div>
+      </section>
+
+      <section className="hub-concept" aria-labelledby="project-gamma">
+        <div className="hub-concept-card">
+          <p className="hub-feature-eyebrow">The Dream Project</p>
+          <h2 className="hub-concept-name" id="project-gamma">
+            Project Gamma
+          </h2>
+          <p className="hub-concept-pitch">
+            A superhero android, designed the 824 way. Gamma is a guardian
+            android on the drawing board tonight: a humanoid protector built
+            around a Hero&apos;s Code — protect human life above all, never
+            harm a person, always only do good, and a human override that
+            always wins. Its mind will be the 824-AI Engine; its conscience,
+            824 Shield — the same Shield that guards this site, serving as a
+            moral firewall that can veto any action that would hurt someone.
+            Every power in the plan is honestly labeled — what exists today,
+            what&apos;s in development, and what&apos;s still movie-level. The
+            roadmap climbs from plans to simulation to a desktop prototype to
+            a rolling helper to the full humanoid. Phase by phase, real by
+            real.
+          </p>
+          <img
+            className="hub-concept-img hub-gamma-img"
+            src="/images/gamma-concept-art.svg"
+            alt="Project Gamma concept art — a black-and-gold armored android with a cape and 824 across its chest"
+            width="1024"
+            height="1536"
+            loading="lazy"
+          />
+          <p className="hub-gamma-meta">Announced November 2026 — plans in development.</p>
         </div>
       </section>
 

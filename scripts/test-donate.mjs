@@ -23,6 +23,11 @@ import { createHmac } from 'node:crypto';
 import { onRequestPost as donateCheckout } from '../functions/api/donate/checkout.js';
 import { onRequestGet as donateStats } from '../functions/api/donate/stats.js';
 import { onRequestPost as stripeWebhook } from '../functions/api/stripe/webhook.js';
+import {
+  DONATION_PROJECTS,
+  DEFAULT_DONATION_PROJECT,
+  validateDonationInput,
+} from '../functions/api/_lib/donations.js';
 
 let passed = 0;
 let failed = 0;
@@ -143,6 +148,40 @@ async function webhook(env, eventObject, { secret = env.STRIPE_WEBHOOK_SECRET, b
   return stripeWebhook({ request, env, params: {} });
 }
 
+// ----- Project list + default (owner direction 2026-11-10) --------------------
+
+console.log('project list + default');
+{
+  const slugs = DONATION_PROJECTS.map((p) => p.slug);
+  check(
+    'project list is the seven known slugs',
+    JSON.stringify(slugs) ===
+      JSON.stringify([
+        'where-needed',
+        'friends-with-benefits',
+        '824-shield',
+        '824-bank',
+        'queen-victoria',
+        'project-gamma',
+        'sports-app',
+      ]),
+    slugs.join(',')
+  );
+  check('default project is project-gamma', DEFAULT_DONATION_PROJECT === 'project-gamma', DEFAULT_DONATION_PROJECT);
+  const names = new Map(DONATION_PROJECTS.map((p) => [p.slug, p.name]));
+  check('project-gamma name', names.get('project-gamma') === 'Project Gamma', names.get('project-gamma'));
+  check('sports-app name', names.get('sports-app') === 'Sports App', names.get('sports-app'));
+
+  const gamma = validateDonationInput({ amountCents: 2000, project: 'project-gamma' });
+  check('validateDonationInput accepts project-gamma', gamma.project.slug === 'project-gamma' && gamma.amountCents === 2000);
+  const sports = validateDonationInput({ amountCents: 2000, project: 'sports-app' });
+  check('validateDonationInput accepts sports-app', sports.project.slug === 'sports-app' && sports.amountCents === 2000);
+  const omitted = validateDonationInput({ amountCents: 2000 });
+  check('validateDonationInput defaults an omitted project to project-gamma', omitted.project.slug === 'project-gamma', omitted.project.slug);
+  const empty = validateDonationInput({ amountCents: 2000, project: '' });
+  check('validateDonationInput defaults an empty project to project-gamma', empty.project.slug === 'project-gamma', empty.project.slug);
+}
+
 // ----- Checkout: dormant -------------------------------------------------------
 
 console.log('checkout — dormant');
@@ -220,8 +259,8 @@ console.log('checkout — stripe session');
     params: {},
   });
   const defaultForm = new URLSearchParams(lastStripeCall.init.body);
-  check('omitted project defaults to where-needed', resDefault.status === 200 && defaultForm.get('metadata[project]') === 'where-needed', defaultForm.get('metadata[project]'));
-  check('min amount $1 accepted with default name', defaultForm.get('line_items[0][price_data][product_data][name]') === 'Donation to 824 — Where It Is Needed Most');
+  check('omitted project defaults to project-gamma', resDefault.status === 200 && defaultForm.get('metadata[project]') === 'project-gamma', defaultForm.get('metadata[project]'));
+  check('min amount $1 accepted with default name', defaultForm.get('line_items[0][price_data][product_data][name]') === 'Donation to 824 — Project Gamma');
 
   stripeBehavior = { status: 402, body: { error: { message: 'Your card was declined.' } } };
   const resFail = await donateCheckout({

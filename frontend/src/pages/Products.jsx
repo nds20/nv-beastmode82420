@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
+import UsedClothingDisclosure from '../components/UsedClothingDisclosure';
 import {
   SORT_OPTIONS,
   applyShopFilters,
@@ -45,6 +46,12 @@ import {
 //   * Price sorts put Price-TBD products last in both directions
 //     (a TBD price is unknown, not $0) — see sortProducts in
 //     lib/departments.js, where all the pure logic lives.
+//
+// Used-clothing disclosure (owner direction 2026-11-09): the shop's
+// policy notice — all clothes are used unless specified as NEW —
+// renders at the TOP (directly under the page title, before the
+// search/sort row) and again at the BOTTOM of this page, in every
+// catalog state including empty. See components/UsedClothingDisclosure.
 export default function Products() {
   const { products, loading } = useProducts();
   const [term, setTerm] = useState('');
@@ -112,6 +119,8 @@ export default function Products() {
       <div className="page-head">
         <h1 className="page-title">Shop Products</h1>
       </div>
+
+      <UsedClothingDisclosure />
 
       <div className="shop-controls">
         <div className="shop-search">
@@ -204,6 +213,8 @@ export default function Products() {
           )}
         </>
       )}
+
+      <UsedClothingDisclosure />
     </main>
   );
 }

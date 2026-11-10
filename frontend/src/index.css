@@ -205,6 +205,20 @@ a.add-btn { text-decoration: none; display: inline-block; }
 .empty-msg { color: var(--muted); padding: 34px 0; font-size: 16px; }
 .result-count { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
 .empty-msg .btn { margin-top: 14px; }
+/* Used-clothing disclosure (owner direction 2026-11-09): the shop's
+   policy notice, rendered at the top and bottom of the shop page —
+   a dark notice bar in the black/gold theme, and the ONLY red is
+   the word NEW: caps, bold, in the red the tree already uses for
+   the sold-out badge (#b3261e; --danger is a light coral). */
+.used-disclosure {
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-left: 4px solid var(--gold);
+  border-radius: 10px; padding: 14px 18px; margin: 18px 0;
+  font-size: 16px; font-weight: 600; text-align: center;
+}
+.used-disclosure-new {
+  color: #b3261e; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+}
 
 /* ---------- Product detail ---------- */
 .pd-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; padding: 30px 0 20px; }

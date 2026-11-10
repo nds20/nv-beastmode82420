@@ -135,6 +135,20 @@ lives in `frontend/src/lib/departments.js` — `applyShopFilters`,
   offers a **Clear filters** action (resets manufacturer, search
   and chip).
 
+## Used-clothing disclosure
+
+Owner policy (2026-11-09): **all clothes are used unless specified
+as NEW.** The shop page (`frontend/src/pages/Products.jsx`) shows
+the disclosure — "All clothes are used unless specified as NEW." —
+**twice**: at the top (directly under the page title, before the
+search/sort row) and again at the bottom, in every catalog state
+including an empty one. One shared component
+(`frontend/src/components/UsedClothingDisclosure.jsx`) renders both
+instances identically as a dark notice bar; the word **NEW** is
+styled capital letters, bold and red (`.used-disclosure-new` in
+`index.css`, #b3261e — the sold-out badge red) and is the only red
+in the bar.
+
 ## The $8.24 test item (nothing item) recipe
 
 The test listing that proves checkout end-to-end, in the Add

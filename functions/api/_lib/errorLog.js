@@ -176,7 +176,7 @@ export async function logError(env, entry = {}, context = null) {
       await env.DB.prepare(
         `DELETE FROM error_logs
          WHERE id <= (SELECT id FROM error_logs ORDER BY id DESC LIMIT 1 OFFSET ${
-           ERROR_LOG_RETENTION - 1
+           ERROR_LOG_RETENTION
          })`
       ).run();
     } catch {

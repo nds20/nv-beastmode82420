@@ -347,6 +347,20 @@ export async function normalizeOrder(body, getProductById, quoteShippingFn) {
     if (!String(customer[field] || '').trim()) fail(400, `Customer ${field} is required.`);
   }
 
+  // Order-confirmation email (2026-11-10, docs/EMAIL.md): OPTIONAL
+  // at the API level — orders from before it, and API clients that
+  // send none, keep working with no email on file (the admin is
+  // still alerted; the customer simply gets no confirmation). A
+  // PRESENT email must match the shape the rest of the codebase
+  // validates with (customers/register.js, _lib/offers.js); the
+  // checkout UI requires it for guests. Stored in the customer JSON
+  // (a TEXT column — no schema change), only when actually sent, so
+  // stored shapes from before this field stay byte-identical.
+  const customerEmail = customer.email != null ? String(customer.email).trim() : '';
+  if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    fail(400, 'Customer email must be a valid email address.');
+  }
+
   const subtotal = round2(items.reduce((sum, i) => sum + i.lineTotal, 0));
   const tax = round2(subtotal * TAX_RATE);
 
@@ -412,6 +426,7 @@ export async function normalizeOrder(body, getProductById, quoteShippingFn) {
       address: String(customer.address).trim(),
       city: String(customer.city).trim(),
       zip: String(customer.zip).trim(),
+      ...(customerEmail ? { email: customerEmail } : {}),
       notes: String(customer.notes || '').trim(),
     },
     payment,

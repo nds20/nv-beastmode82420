@@ -37,6 +37,7 @@ import {
 } from '../_lib/db.js';
 import { recordDonation } from '../_lib/donations.js';
 import { applyOrderInventory } from '../_lib/inventory.js';
+import { sendOrderPaidEmail } from '../_lib/mail.js';
 import { stripeWebhookConfigured, verifyWebhookSignature } from '../_lib/stripe.js';
 
 async function orderForSession(env, session) {
@@ -85,6 +86,13 @@ export const onRequestPost = handle(async ({ request, env }) => {
       // offer, the offer is now paid too. Guarded to offers still in
       // 'accepted' and a no-op for ordinary orders (docs/OFFERS.md).
       await markOfferPaidByOrderId(env, order.id);
+      // Email (2026-11-10, docs/EMAIL.md): the admin's PAID alert
+      // fires at this same commit point — inside the not-yet-paid
+      // guard, so a redelivered event never double-sends. The order
+      // copy carries its fresh 'paid' status (the row above was just
+      // stamped). Best-effort: mail can never fail the webhook.
+      // Donation sessions returned earlier and never reach here.
+      await sendOrderPaidEmail(env, { ...order, paymentStatus: 'paid' });
     }
   } else if (event.type === 'checkout.session.expired') {
     const order = await orderForSession(env, session);

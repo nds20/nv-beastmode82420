@@ -36,5 +36,10 @@ export const onRequestGet = handle(async ({ request, env, params }) => {
     offerAmount: offer.offerAmount,
     orderId: offer.orderId,
     message: offerStatusMessage(offer),
+    // The buyer's OWN email (token-gated — only the token holder
+    // sees it): the pay page shows it read-only so the buyer knows
+    // where the order confirmation will go (docs/EMAIL.md — the pay
+    // endpoint puts this address on the created order).
+    buyerEmail: offer.buyerEmail,
   });
 });

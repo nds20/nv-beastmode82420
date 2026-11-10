@@ -16,8 +16,8 @@ import {
 // Offer status — route "/shop/offer/:id" (Best Offer, 2026-11-10 —
 // docs/OFFERS.md).
 //
-// The buyer's home for one offer. The shop has no accounts-for-offers
-// and no email system, so the per-offer access token IS the key: it
+// The buyer's home for one offer. The shop has no accounts-for-offers,
+// so the per-offer access token IS the key: it
 // arrives as ?token= in the link shown when the offer is sent and is
 // also saved on the device that made the offer (localStorage
 // `shop824_offer_<id>`). The page polls nothing — it loads once and
@@ -320,6 +320,13 @@ export default function OfferStatus() {
               <div className="field">
                 <label htmlFor="os-fullName">Full Name *</label>
                 <input id="os-fullName" autoComplete="name" {...bind('fullName')} />
+              </div>
+              <div className="field">
+                <label htmlFor="os-email">Order Confirmation Email</label>
+                <input id="os-email" type="email" value={data.buyerEmail || ''} readOnly />
+                <p className="sum-note">
+                  Your order confirmation will be sent to the email on your offer.
+                </p>
               </div>
               <div className="field-row">
                 <div className="field">

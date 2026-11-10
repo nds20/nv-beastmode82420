@@ -13,6 +13,7 @@ import { normalizeOrder } from './_lib/validate.js';
 import { quoteShipping } from './_lib/shipping.js';
 import { applyOrderInventory } from './_lib/inventory.js';
 import { verifyCustomerToken } from './_lib/auth.js';
+import { sendOrderPlacedEmails, sendOrderPaidEmail } from './_lib/mail.js';
 
 export const onRequestPost = handle(async ({ request, env }) => {
   const body = await request.json().catch(() => ({}));
@@ -43,6 +44,19 @@ export const onRequestPost = handle(async ({ request, env }) => {
   // not decremented here. See _lib/inventory.js.
   if (order.payment) {
     order = await applyOrderInventory(env, order);
+  }
+  // Email notifications (2026-11-10, docs/EMAIL.md): the placed pair
+  // (customer confirmation when the order carries an email + the
+  // admin's new-order alert) fires now that the order is saved, and
+  // a demo-card placement — whose payment commit is placement, the
+  // exact condition above — also fires the admin's PAID alert. The
+  // mail helpers are best-effort and never throw (dormant until the
+  // GOOGLE_OAUTH_* secrets are set), so they cannot change this
+  // response; they are awaited because the Worker route adapter
+  // threads no waitUntil context to handlers.
+  await sendOrderPlacedEmails(env, order);
+  if (order.payment) {
+    await sendOrderPaidEmail(env, order);
   }
   return json(order, 201);
 });

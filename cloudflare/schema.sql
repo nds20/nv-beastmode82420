@@ -24,6 +24,9 @@
 --   * Order payloads are TEXT columns holding JSON:
 --       items    JSON array of { productId, name, qty, unitPrice, lineTotal }
 --       customer JSON object { fullName, phone, address, city, zip, notes }
+--                plus, since 2026-11-10, an optional `email` (the
+--                order-confirmation address — docs/EMAIL.md); orders
+--                without one simply have no email on file.
 --       payment  NULL, or JSON { method: 'card', last4 } — ONLY the last
 --                four digits are ever stored, never a full card number.
 --   * admin_accounts stores PBKDF2-SHA256 password hashes with a

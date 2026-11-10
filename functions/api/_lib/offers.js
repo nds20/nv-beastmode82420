@@ -20,9 +20,12 @@
 //     shipping is re-quoted server-side at pay time from the buyer's
 //     ZIP — an amount a client sends is never trusted (the pay route
 //     takes the price from the stored offer row, not the body).
-//   * The shop has no email system: the buyer watches their offer
-//     through its status link (the per-offer access token), and the
-//     seller works the admin Offers inbox. Nothing is emailed.
+//   * The buyer watches their offer through its status link (the
+//     per-offer access token), and the seller works the admin
+//     Offers inbox. Since the email build (2026-11-10,
+//     docs/EMAIL.md) the seller ALSO gets an email alert per offer
+//     when mail is configured — but the buyer-facing flow is
+//     unchanged: no email is ever sent to the buyer about an offer.
 
 import { fail, round2 } from './http.js';
 import { TAX_RATE } from './validate.js';

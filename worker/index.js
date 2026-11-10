@@ -43,6 +43,7 @@
 //   GET    /api/admin/orders/:id                                      (admin)
 //   PATCH  /api/admin/orders/:id/seen                                 (admin)
 //   PATCH  /api/admin/products/:id/stock                              (admin)
+//   GET    /api/admin/mail-debug        POST /api/admin/mail-debug    (admin)
 //   GET    /api/photos/<key...>  — uploaded photos, served from R2
 //
 // Configuration lives in ../wrangler.toml: the D1 (`DB`) and R2
@@ -70,6 +71,7 @@ import { onRequestPost as adminOfferAccept } from '../functions/api/admin/offers
 import { onRequestPost as adminOfferDecline } from '../functions/api/admin/offers/[id]/decline.js';
 import { onRequestPost as shippingQuote } from '../functions/api/shipping/quote.js';
 import { onRequestGet as shippingDebug } from '../functions/api/shipping/debug.js';
+import { onRequestGet as photoDebug } from '../functions/api/products/photo-debug.js';
 import { onRequestPost as orderCheckout } from '../functions/api/orders/[id]/checkout.js';
 import { onRequestGet as orderStatus } from '../functions/api/orders/[id]/status.js';
 import { onRequestGet as orderSignal } from '../functions/api/orders/signal.js';
@@ -95,6 +97,10 @@ import { onRequestGet as adminOrdersList } from '../functions/api/admin/orders.j
 import { onRequestGet as adminOrderGet } from '../functions/api/admin/orders/[id].js';
 import { onRequestPatch as adminOrderSeen } from '../functions/api/admin/orders/[id]/seen.js';
 import { onRequestPatch as adminProductStock } from '../functions/api/admin/products/[id]/stock.js';
+import {
+  onRequestGet as adminMailDebugGet,
+  onRequestPost as adminMailDebugPost,
+} from '../functions/api/admin/mail-debug.js';
 import { onRequestGet as photoServe } from '../functions/api/photos/[[path]].js';
 
 // Fixed routes; ":name" captures one path segment into params, exactly
@@ -102,6 +108,7 @@ import { onRequestGet as photoServe } from '../functions/api/photos/[[path]].js'
 const ROUTES = [
   { parts: ['api', 'health'], handlers: { GET: healthGet } },
   { parts: ['api', 'products'], handlers: { GET: productsList, POST: productsCreate } },
+  { parts: ['api', 'products', 'photo-debug'], handlers: { GET: photoDebug } },
   {
     parts: ['api', 'products', ':id'],
     handlers: { GET: productGet, PUT: productUpdate, DELETE: productDelete },
@@ -142,6 +149,7 @@ const ROUTES = [
   { parts: ['api', 'admin', 'orders', ':id'], handlers: { GET: adminOrderGet } },
   { parts: ['api', 'admin', 'orders', ':id', 'seen'], handlers: { PATCH: adminOrderSeen } },
   { parts: ['api', 'admin', 'products', ':id', 'stock'], handlers: { PATCH: adminProductStock } },
+  { parts: ['api', 'admin', 'mail-debug'], handlers: { GET: adminMailDebugGet, POST: adminMailDebugPost } },
 ];
 
 function decodeSegment(segment) {

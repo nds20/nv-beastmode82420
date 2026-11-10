@@ -35,6 +35,7 @@ import { timingSafeStringEqual } from '../../_lib/auth.js';
 import { normalizeOrder } from '../../_lib/validate.js';
 import { quoteShipping } from '../../_lib/shipping.js';
 import { applyOrderInventory } from '../../_lib/inventory.js';
+import { sendOrderPlacedEmails, sendOrderPaidEmail } from '../../_lib/mail.js';
 
 export const onRequestPost = handle(async ({ request, env, params }) => {
   const id = numericId(params.id);
@@ -85,7 +86,15 @@ export const onRequestPost = handle(async ({ request, env, params }) => {
           ...(offer.size ? { size: offer.size } : {}),
         },
       ],
-      customer: data.customer || {},
+      customer: {
+        ...(data.customer || {}),
+        // Email (2026-11-10, docs/EMAIL.md): the order's customer
+        // block carries the OFFER's buyer email — the address the
+        // buyer gave with the offer — so the order confirmation
+        // reaches them. It wins over any email in the pay body: the
+        // offer's address is the one tied to this purchase.
+        email: offer.buyerEmail,
+      },
       ...(data.shippingService !== undefined
         ? { shippingService: data.shippingService }
         : {}),
@@ -105,6 +114,17 @@ export const onRequestPost = handle(async ({ request, env, params }) => {
   if (order.payment) {
     order = await applyOrderInventory(env, order);
     await updateOffer(env, offer.id, { status: 'paid' });
+  }
+  // Email notifications (2026-11-10, docs/EMAIL.md): this endpoint
+  // mints the order itself rather than going through POST
+  // /api/orders, so the placed pair fires HERE — exactly once (the
+  // orders handler is not also invoked). The buyer's confirmation
+  // goes to the offer's email, injected into the order above. A
+  // demo-card pay is a payment commit, so the admin's PAID alert
+  // fires too; a Stripe pay leaves that to the webhook.
+  await sendOrderPlacedEmails(env, order);
+  if (order.payment) {
+    await sendOrderPaidEmail(env, order);
   }
   return json(order, 201);
 });

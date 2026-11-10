@@ -58,6 +58,15 @@ const luhn = (num) => {
 
 const VALIDATORS = {
   fullName: (v) => (v.trim().split(/\s+/).length >= 2 ? '' : 'Enter your first and last name.'),
+  // Email (2026-11-10, docs/EMAIL.md): the order-confirmation
+  // address. The shape is checked whenever anything is typed; the
+  // guest-required rule lives in the component (a signed-in customer
+  // may leave it blank — it is prefilled from their account).
+  email: (v) => {
+    const t = v.trim();
+    if (!t) return '';
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t) ? '' : 'Enter a valid email address.';
+  },
   phone: (v) => (digits(v).length === 10 ? '' : 'Enter a 10-digit phone number.'),
   address: (v) => (v.trim().length >= 5 ? '' : 'Enter your street address.'),
   city: (v) => (v.trim() ? '' : 'Enter your city.'),
@@ -90,6 +99,7 @@ export default function Checkout() {
   const [stripeEnabled, setStripeEnabled] = useState(false);
   const [form, setForm] = useState({
     fullName: '',
+    email: '',
     phone: '',
     address: '',
     city: '',
@@ -116,6 +126,14 @@ export default function Checkout() {
   useEffect(() => {
     if (user && user.name) {
       setForm((s) => (s.fullName ? s : { ...s, fullName: user.name }));
+    }
+  }, [user]);
+
+  // ...and their account email prefilled as the confirmation
+  // address (they can change it — it only affects this order).
+  useEffect(() => {
+    if (user && user.email) {
+      setForm((s) => (s.email ? s : { ...s, email: user.email }));
     }
   }, [user]);
 
@@ -216,9 +234,14 @@ export default function Checkout() {
   }
 
   const fields = stripeEnabled
-    ? ['fullName', 'phone', 'address', 'city', 'zip']
-    : ['fullName', 'phone', 'address', 'city', 'zip', 'cardNumber', 'expiry', 'cvv'];
+    ? ['fullName', 'email', 'phone', 'address', 'city', 'zip']
+    : ['fullName', 'email', 'phone', 'address', 'city', 'zip', 'cardNumber', 'expiry', 'cvv'];
   const errors = Object.fromEntries(fields.map((f) => [f, VALIDATORS[f](form[f])]));
+  // Guests must give an email (the confirmation has nowhere else to
+  // go); signed-in customers may clear the prefilled account email.
+  if (!user && !form.email.trim()) {
+    errors.email = 'Enter your email address for your order confirmation.';
+  }
   const showErr = (f) => (touched[f] ? errors[f] : '');
 
   // Shipping selection: only meaningful when a quote said the server
@@ -272,6 +295,9 @@ export default function Checkout() {
       })),
       customer: {
         fullName: form.fullName.trim(),
+        // The confirmation address — only sent when present (the
+        // API treats it as optional; see _lib/validate.js).
+        ...(form.email.trim() ? { email: form.email.trim() } : {}),
         phone: digits(form.phone),
         address: form.address.trim(),
         city: form.city.trim(),
@@ -354,6 +380,15 @@ export default function Checkout() {
               <label htmlFor="fullName">Full Name *</label>
               <input id="fullName" autoComplete="name" {...bind('fullName')} />
               {showErr('fullName') && <p className="form-error">{showErr('fullName')}</p>}
+            </div>
+            <div className="field">
+              <label htmlFor="email">Email Address{user ? '' : ' *'}</label>
+              <input id="email" type="email" autoComplete="email" {...bind('email')} />
+              {showErr('email') && <p className="form-error">{showErr('email')}</p>}
+              <p className="sum-note">
+                Your order confirmation is emailed to this address.
+                {user ? ' Prefilled from your account — change it for this order if you like.' : ''}
+              </p>
             </div>
             <div className="field-row">
               <div className="field">

@@ -16,6 +16,7 @@
 //                                        DELETE /api/products/:id     (admin)
 //   POST   /api/orders
 //   POST   /api/shipping/quote                                (public)
+//   GET    /api/shipping/debug                                  (admin)
 //   POST   /api/orders/:id/checkout                             (order token)
 //   GET    /api/orders/:id/status                               (order token)
 //   GET    /api/orders/signal                    (public: latest paid order)
@@ -57,6 +58,7 @@ import {
 } from '../functions/api/products/[id].js';
 import { onRequestPost as orderCreate } from '../functions/api/orders.js';
 import { onRequestPost as shippingQuote } from '../functions/api/shipping/quote.js';
+import { onRequestGet as shippingDebug } from '../functions/api/shipping/debug.js';
 import { onRequestPost as orderCheckout } from '../functions/api/orders/[id]/checkout.js';
 import { onRequestGet as orderStatus } from '../functions/api/orders/[id]/status.js';
 import { onRequestGet as orderSignal } from '../functions/api/orders/signal.js';
@@ -95,6 +97,7 @@ const ROUTES = [
   },
   { parts: ['api', 'orders'], handlers: { POST: orderCreate } },
   { parts: ['api', 'shipping', 'quote'], handlers: { POST: shippingQuote } },
+  { parts: ['api', 'shipping', 'debug'], handlers: { GET: shippingDebug } },
   { parts: ['api', 'orders', ':id', 'checkout'], handlers: { POST: orderCheckout } },
   { parts: ['api', 'orders', ':id', 'status'], handlers: { GET: orderStatus } },
   // The literal 'signal' route must precede nothing in particular —

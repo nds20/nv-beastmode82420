@@ -72,6 +72,14 @@ export function computePackage(entries) {
     widthIn = Math.max(widthIn, Number(product && product.widthIn) > 0 ? Number(product.widthIn) : DEFAULT_WIDTH_IN);
     heightIn = Math.max(heightIn, Number(product && product.heightIn) > 0 ? Number(product.heightIn) : DEFAULT_HEIGHT_IN);
   }
+  // Structural guarantee (2026-11-10): no axis ever leaves here at
+  // 0 or unset — a 0-inch dimension can make USPS reject the parcel
+  // outright. The per-product defaults above already cover ordinary
+  // carts; this clamp covers the rest (e.g. an empty entry list, or
+  // every entry excluded) so the defaults hold by construction.
+  if (!(lengthIn > 0)) lengthIn = DEFAULT_LENGTH_IN;
+  if (!(widthIn > 0)) widthIn = DEFAULT_WIDTH_IN;
+  if (!(heightIn > 0)) heightIn = DEFAULT_HEIGHT_IN;
   const weightLb = Math.max(0.1, Math.ceil((weightOz / 16) * 10) / 10);
   return { weightOz: round1(weightOz), weightLb, lengthIn, widthIn, heightIn };
 }
@@ -111,7 +119,11 @@ export async function quoteShipping(env, entries, destZip) {
     return { configured: false, options: [], ...parcel };
   }
   try {
-    const options = await quoteUspsRates(env, {
+    // quoteUspsRates returns { options, diagnostics } (2026-11-10);
+    // the storefront path deliberately ignores diagnostics — the
+    // fallback semantics here are unchanged. Diagnostics surface via
+    // GET /api/shipping/debug instead.
+    const { options } = await quoteUspsRates(env, {
       destZip,
       weightLb: parcel.weightLb,
       length: parcel.lengthIn,

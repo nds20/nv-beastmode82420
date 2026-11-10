@@ -12,6 +12,7 @@ starts offering real rates — no code change needed.
 Code: `functions/api/_lib/usps.js` (USPS client) +
 `functions/api/_lib/shipping.js` (package math + quoting) +
 `functions/api/shipping/quote.js` (public quote endpoint) +
+`functions/api/shipping/debug.js` (admin-only live-rate diagnostics) +
 `functions/api/_lib/validate.js` (order placement re-quote).
 
 1. **The parcel.** Every product has optional admin-set measurements
@@ -118,9 +119,84 @@ these values; never paste the secret into chat or code.
   documents the same ALTERs, and `cloudflare/schema.sql` carries
   them for fresh installs.
 
+## Diagnosing live rates
+
+Symptom this section exists for: the variables are wired
+(`POST /api/shipping/quote` answers `configured: true`) yet every
+quote comes back as the flat $8.99 "standard" fallback. That means
+USPS refused the real calls — but the storefront path deliberately
+swallows the reason (a shopper-facing quote must never break). The
+truth is captured per-call in **diagnostics** and surfaced here:
+
+**Endpoint:** `GET /api/shipping/debug` — admin-gated (send the
+admin bearer token, same as any `/api/admin/*` call; no token →
+401). It runs ONE live quote attempt for a canonical parcel
+(shop origin ZIP → **90210**, 1 lb, 12 × 9 × 6 in), calling the
+USPS client **directly** so the flat-rate fallback cannot mask the
+failure, and answers:
+
+```json
+{ "configured": true, "tokenOk": true,
+  "options": [ …live options, if any… ],
+  "diagnostics": [ …one entry per USPS call… ],
+  "error": "…only when the whole quote failed…" }
+```
+
+(`{ "configured": false }` when any of the three USPS variables is
+missing — nothing was called.) Each diagnostics entry is:
+
+| Field | Meaning |
+| --- | --- |
+| `stage` | `token`, `rates`, or `rates-commercial-fallback` (see below) |
+| `mailClass` | the class the call was for (null on the token entry) |
+| `priceType` | `RETAIL` / `COMMERCIAL` (null on the token entry) |
+| `httpStatus` | USPS's HTTP status; **null means the fetch itself failed** (network) |
+| `errorCode` | the code parsed from USPS's error body, when it sent one |
+| `message` | USPS's error text, trimmed to 200 chars |
+| `ok` | whether that call produced something usable |
+
+Diagnostics never contain credential values, tokens, or raw
+response bodies. If the Ground Advantage **RETAIL** call fails, the
+debug endpoint also tries that one class at `priceType:
+'COMMERCIAL'`, recorded as stage `rates-commercial-fallback` —
+some USPS accounts (apps authorized under a payment account) must
+quote commercial rates. **Production quoting stays RETAIL-only**;
+the probe exists only to make that situation visible.
+
+**Reading common outcomes:**
+
+- **Token entry `httpStatus: 401`, `errorCode: "invalid_client"`**
+  → the Consumer Key/Secret pasted into Cloudflare are wrong (or
+  swapped, or the publishable-style value landed in the secret
+  field). Re-copy both from the SAME USPS app's Credentials section.
+- **Token entry `ok: true`, rates entries `httpStatus: 403`**
+  → the app is authenticated but **not authorized** for the Prices
+  API / account resources. In the USPS Customer Onboarding Portal,
+  open the app and click **Refresh Claims** (links the key to the
+  business CRID); make sure the app carries the Prices/Public
+  Access product.
+- **Rates entry `httpStatus: 400` with an error code** → a
+  **payload** problem: USPS rejected the parcel itself (weight or
+  dimensions out of range, bad ZIP). The `message` says which.
+- **Rates entry `ok: true` but message "response contained no
+  usable totalBasePrice"** → USPS answered 200 with a body shape
+  the client doesn't recognize — capture the entry and investigate
+  before changing code.
+- **`rates` failed but `rates-commercial-fallback` is `ok: true`**
+  → this account must quote **COMMERCIAL** prices. Do not flip the
+  production default on this evidence alone — it's a pricing
+  decision for the owner (commercial rates are lower than retail).
+- **Any entry with `httpStatus: null`** → the Worker couldn't
+  reach `apis.usps.com` at all (network/egress), not a USPS
+  refusal.
+
+⚠️ Each debug hit costs up to **3 USPS calls** against the
+~60/hour Prices quota — run it to diagnose, don't poll it.
+
 ## Tests
 
 ```
-node scripts/test-shipping.mjs   # 63 checks: quoting, orders, Stripe, persistence
-node scripts/test-donate.mjs     # regression: donations untouched
+node scripts/test-shipping.mjs    # 63 checks: quoting, orders, Stripe, persistence
+node scripts/test-usps-debug.mjs  # 39 checks: diagnostics capture, debug endpoint, dim defaults
+node scripts/test-donate.mjs      # regression: donations untouched
 ```

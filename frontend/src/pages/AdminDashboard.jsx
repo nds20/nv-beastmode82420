@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
+  acceptAdminOffer,
   clearAdminToken,
   createAdminAccount,
+  declineAdminOffer,
   deleteAdminAccount,
   fetchAdminAccounts,
   fetchAdminCustomers,
+  fetchAdminOffers,
   fetchAdminOrder,
   fetchAdminOrders,
   fetchAdminProducts,
@@ -32,6 +35,11 @@ import { money, priceLabel } from '../components/ProductCard';
 //     (a read-only summary below; adding, editing and deleting
 //     products lives on the Products page, /shop/admin/products,
 //     behind the Products tab — see docs/PRODUCT_EDITOR.md)
+//   - GET   /api/admin/offers           -> { offers, counts } — the
+//     Best Offer inbox (2026-11-10): pending first, each row with the
+//     product's current list price and a would-be totals preview;
+//     POST /api/admin/offers/:id/accept | /decline are the seller's
+//     only two decisions — no order exists until the buyer pays.
 //   - GET   /api/admin/accounts         -> { accounts } (OWNER ONLY:
 //     the Admins section below renders only when this succeeds; a
 //     403 means "signed in, but not the owner" and the section
@@ -59,6 +67,13 @@ export default function AdminDashboard() {
   const [details, setDetails] = useState({});
   const [detailError, setDetailError] = useState('');
   const [seenBusyId, setSeenBusyId] = useState(null);
+  // Best Offer inbox (2026-11-10): any admin sees it (the endpoints
+  // are requireAdmin, not owner-only). offers stays null until the
+  // first load lands; actions reload the whole inbox.
+  const [offers, setOffers] = useState(null);
+  const [offerCounts, setOfferCounts] = useState(null);
+  const [offersError, setOffersError] = useState('');
+  const [offerBusyId, setOfferBusyId] = useState(null);
   // Admins section (owner-only): accounts stays null until the
   // owner-only list call succeeds — a 403 (a co-admin is signed in)
   // or any other failure simply leaves the section unrendered.
@@ -118,6 +133,16 @@ export default function AdminDashboard() {
       })
       .catch((err) => {
         if (!cancelled) handleError(err, setCustomersError);
+      });
+    fetchAdminOffers()
+      .then((data) => {
+        if (!cancelled) {
+          setOffers(Array.isArray(data.offers) ? data.offers : []);
+          setOfferCounts(data.counts || null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) handleError(err, setOffersError);
       });
     // Owner-only: success fills the Admins section; ANY failure
     // (403 for co-admins above all) leaves it hidden — silently,
@@ -180,6 +205,49 @@ export default function AdminDashboard() {
       handleError(err, setOrdersError);
     } finally {
       setSeenBusyId(null);
+    }
+  };
+
+  // ----- Best Offer inbox handlers -------------------------------------------
+
+  const reloadOffers = useCallback(async () => {
+    const data = await fetchAdminOffers();
+    setOffers(Array.isArray(data.offers) ? data.offers : []);
+    setOfferCounts(data.counts || null);
+  }, []);
+
+  const acceptOffer = async (offer) => {
+    // The confirm names the product and the amount being accepted —
+    // the same pattern as the admin remove confirm.
+    if (
+      !window.confirm(
+        `Accept the ${money(offer.offerAmount)} offer on ${offer.productName || 'this product'}? The buyer can then pay that price (plus tax and shipping).`
+      )
+    ) {
+      return;
+    }
+    setOffersError('');
+    setOfferBusyId(offer.id);
+    try {
+      await acceptAdminOffer(offer.id);
+      await reloadOffers();
+    } catch (err) {
+      handleError(err, setOffersError);
+    } finally {
+      setOfferBusyId(null);
+    }
+  };
+
+  const declineOffer = async (offer) => {
+    setOffersError('');
+    setOfferBusyId(offer.id);
+    try {
+      await declineAdminOffer(offer.id);
+      await reloadOffers();
+    } catch (err) {
+      handleError(err, setOffersError);
+    } finally {
+      setOfferBusyId(null);
     }
   };
 
@@ -379,6 +447,100 @@ export default function AdminDashboard() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      <h2 className="section-title" style={{ marginTop: 44 }}>
+        Offers
+        {offerCounts && offerCounts.pending > 0 ? ` — ${offerCounts.pending} waiting` : ''}
+      </h2>
+      <p className="section-sub">
+        Best Offer inbox: buyers offer below list price on eligible items (never on
+        NEW items). Accepting creates no order and moves no stock — the buyer pays
+        from their offer page, and that payment is the sale. Offers expire 72 hours
+        after they are made.
+      </p>
+      {offersError && (
+        <p className="form-error" role="alert">
+          {offersError}
+        </p>
+      )}
+      {offers === null && !offersError && <p className="card-sub">Loading offers…</p>}
+      {offers !== null && offers.length === 0 && (
+        <p className="empty-msg">
+          No offers yet. When a buyer makes an offer on a product page, it lands here.
+        </p>
+      )}
+      {offers !== null && offers.length > 0 && (
+        <div className="orders-list">
+          {offers.map((offer) => (
+            <div className="order-row admin-order" key={offer.id}>
+              <div>
+                <div className="ord-id">
+                  {offer.productName || `Product #${offer.productId}`}{' '}
+                  <span
+                    className={`status-pill${offer.status === 'pending' ? ' is-new' : ''}`}
+                  >
+                    {offer.status}
+                  </span>
+                </div>
+                <div className="ord-meta">
+                  List {offer.listPrice != null ? money(offer.listPrice) : 'TBD'}
+                  {offer.size ? ` · Size: ${offer.size}` : ''} · Offered{' '}
+                  {new Date(offer.createdAt).toLocaleString()}
+                  {offer.status === 'pending'
+                    ? ` · Expires ${new Date(offer.expiresAt).toLocaleString()}`
+                    : ''}
+                </div>
+                <div className="ord-meta">
+                  {offer.buyerName} · {offer.buyerEmail}
+                  {offer.buyerPhone ? ` · ${offer.buyerPhone}` : ''}
+                </div>
+                {offer.note ? <div className="ord-meta">“{offer.note}”</div> : null}
+                {offer.orderId ? (
+                  <div className="ord-meta">Order ORD-{offer.orderId}</div>
+                ) : null}
+              </div>
+              <div className="admin-order-side">
+                <div>
+                  <div className="ord-id">{money(offer.offerAmount)}</div>
+                  <div className="ord-meta">
+                    {offer.wouldBe
+                      ? `+ tax ${money(offer.wouldBe.tax)} · ${
+                          offer.wouldBe.shippingCents === 0
+                            ? 'Free shipping'
+                            : offer.wouldBe.shippingLabel
+                        }${
+                          offer.wouldBe.total != null
+                            ? ` · total ${money(offer.wouldBe.total)}`
+                            : ''
+                        }`
+                      : ''}
+                  </div>
+                </div>
+                {offer.status === 'pending' && (
+                  <div className="admin-order-actions">
+                    <button
+                      className="btn-ghost"
+                      type="button"
+                      disabled={offerBusyId === offer.id}
+                      onClick={() => acceptOffer(offer)}
+                    >
+                      {offerBusyId === offer.id ? 'Working…' : 'Accept'}
+                    </button>
+                    <button
+                      className="btn-ghost"
+                      type="button"
+                      disabled={offerBusyId === offer.id}
+                      onClick={() => declineOffer(offer)}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

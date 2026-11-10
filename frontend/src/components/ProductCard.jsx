@@ -71,6 +71,12 @@ export default function ProductCard({ product }) {
             </button>
           )}
         </div>
+        {/* Best Offer (2026-11-10): the offer tag rides under the
+            price on every priced, available card whose product
+            takes offers — the shop disclosure spells the policy out. */}
+        {product.acceptsOffers && !soldOut && !tbd && (
+          <p className="card-offer">or Best Offer</p>
+        )}
       </div>
     </article>
   );

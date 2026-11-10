@@ -45,6 +45,18 @@
 //   customers       shopper accounts: incrementing id, name, unique
 //                   case-insensitive email, PBKDF2 salt/hash, created_at.
 //                   Never seeded — the first registration is customer 1.
+//   offers          Best Offer (2026-11-10): one row per buyer offer
+//                   on a product. `offer_cents` is INTEGER CENTS (the
+//                   shipping_cents precedent — the name carries its
+//                   unit); `access_token` is the buyer's per-offer
+//                   secret, minted exactly like an order's; `status`
+//                   walks pending -> accepted/declined/expired, and
+//                   accepted -> paid when the order it produced is
+//                   paid (see _lib/offers.js and docs/OFFERS.md).
+//                   Products gain `condition` (TEXT: 'new' | 'used' |
+//                   NULL) and `accepts_offers` (INTEGER 1/0/NULL) —
+//                   rowToProduct computes the effective acceptsOffers
+//                   boolean from them (see productAcceptsOffers).
 //   app_settings    key/value rows; currently holds the generated
 //                   customer-token signing secret (see
 //                   getCustomerTokenSecret below).
@@ -271,7 +283,105 @@ export function ensureAdminColumns(env) {
   return adminColumnsPromise;
 }
 
+// ----- Offers columns + table (lazy ensure) -----------------------------------
+//
+// Best Offer (owner direction 2026-11-10 — see docs/OFFERS.md). Two
+// storage changes, both lazy like everything above:
+//   * products gain `condition` (TEXT NULL: 'new' | 'used') and
+//     `accepts_offers` (INTEGER NULL: 1/0 explicit, NULL = default),
+//     added by ensureOffersColumns() (the PRAGMA pattern).
+//   * the `offers` table itself is created by ensureOffersTable()
+//     (the donations pattern: CREATE TABLE IF NOT EXISTS) — it is a
+//     brand-new table, so there is nothing to ALTER.
+// cloudflare/schema.sql carries both for fresh installs and
+// cloudflare/migration-offers.sql documents the same changes.
+
+const OFFERS_COLUMNS = {
+  products: [
+    ['condition', 'TEXT'],
+    ['accepts_offers', 'INTEGER'],
+  ],
+};
+
+let offersColumnsPromise = null;
+
+export function ensureOffersColumns(env) {
+  if (!offersColumnsPromise) {
+    offersColumnsPromise = (async () => {
+      for (const [table, columns] of Object.entries(OFFERS_COLUMNS)) {
+        // eslint-disable-next-line no-await-in-loop
+        const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+        const existing = new Set((results || []).map((row) => row.name));
+        for (const [name, type] of columns) {
+          if (!existing.has(name)) {
+            // eslint-disable-next-line no-await-in-loop
+            await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run();
+          }
+        }
+      }
+      return true;
+    })().catch((err) => {
+      // Same retry rule as the other ensures: never poison the isolate.
+      offersColumnsPromise = null;
+      throw err;
+    });
+  }
+  return offersColumnsPromise;
+}
+
+let offersTablePromise = null;
+
+export function ensureOffersTable(env) {
+  if (!offersTablePromise) {
+    offersTablePromise = env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS offers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        size TEXT,
+        offer_cents INTEGER NOT NULL,
+        buyer_name TEXT NOT NULL,
+        buyer_email TEXT NOT NULL,
+        buyer_phone TEXT,
+        note TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        access_token TEXT,
+        order_id INTEGER,
+        created_at TEXT NOT NULL,
+        decided_at TEXT,
+        expires_at TEXT NOT NULL
+      )`
+    )
+      .run()
+      .then(() => true)
+      .catch((err) => {
+        // Same retry rule as donations: never poison the isolate.
+        offersTablePromise = null;
+        throw err;
+      });
+  }
+  return offersTablePromise;
+}
+
 // ----- Products ---------------------------------------------------------------
+
+/**
+ * The Best Offer eligibility rule (owner direction 2026-11-10),
+ * computed from the raw product row so every surface agrees:
+ *   - condition 'new' -> NEVER accepts offers (new items sell at
+ *     list price only), whatever the stored flag says;
+ *   - an explicit accepts_offers flag (1/0) wins;
+ *   - flag NULL — every product that predates the feature — defaults
+ *     ON when the product has a real price (> 0) and OFF while its
+ *     price is TBD (there is nothing to offer against).
+ */
+export function productAcceptsOffers(row) {
+  if (!row) return false;
+  const condition = row.condition != null ? String(row.condition).toLowerCase() : null;
+  if (condition === 'new') return false;
+  if (row.accepts_offers === 1 || row.accepts_offers === true) return true;
+  if (row.accepts_offers === 0 || row.accepts_offers === false) return false;
+  return typeof row.price === 'number' && row.price > 0;
+}
 
 export function rowToProduct(row) {
   if (!row) return null;
@@ -310,16 +420,31 @@ export function rowToProduct(row) {
     brand: row.brand != null && row.brand !== '' ? row.brand : null,
     sizes: parseJsonColumn(row.sizes, []),
     scent: row.scent != null && row.scent !== '' ? row.scent : null,
+    // Best Offer (2026-11-10): condition is the raw stated state —
+    // 'new' | 'used' | null (unspecified; the shop's disclosure
+    // treats unspecified clothes as used). acceptsOffers is the
+    // COMPUTED eligibility (productAcceptsOffers above), never the
+    // raw flag: 'new' forces false, an explicit flag wins, and a
+    // NULL flag defaults ON for priced items — which is what makes
+    // every pre-feature product offer-eligible automatically.
+    condition:
+      row.condition != null && String(row.condition).toLowerCase() === 'new'
+        ? 'new'
+        : row.condition != null && String(row.condition).toLowerCase() === 'used'
+          ? 'used'
+          : null,
+    acceptsOffers: productAcceptsOffers(row),
   };
 }
 
 const PRODUCT_COLUMNS =
-  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent';
+  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent, condition, accepts_offers';
 
 export async function listProducts(env) {
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
+  await ensureOffersColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY id ASC`
   ).all();
@@ -332,6 +457,7 @@ export async function getProduct(env, id) {
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
+  await ensureOffersColumns(env);
   const row = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`
   )
@@ -365,6 +491,11 @@ function productParams(data) {
     data.brand != null && data.brand !== '' ? data.brand : null,
     Array.isArray(data.sizes) && data.sizes.length > 0 ? JSON.stringify(data.sizes) : null,
     data.scent != null && data.scent !== '' ? data.scent : null,
+    // Best Offer: condition is 'new' | 'used' | null; acceptsOffers
+    // arrives from normalizeProduct as the raw flag — 1 / 0 / null
+    // (null = no explicit choice, the computed default applies).
+    data.condition === 'new' || data.condition === 'used' ? data.condition : null,
+    data.acceptsOffers === 1 || data.acceptsOffers === 0 ? data.acceptsOffers : null,
   ];
 }
 
@@ -372,9 +503,10 @@ export async function createProduct(env, data) {
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
+  await ensureOffersColumns(env);
   const result = await env.DB.prepare(
-    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping, brand, sizes, scent, condition, accepts_offers)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(...productParams(data))
     .run();
@@ -387,13 +519,15 @@ export async function updateProduct(env, id, data) {
   await ensureShippingColumns(env);
   await ensureInventoryColumns(env);
   await ensureClothingColumns(env);
+  await ensureOffersColumns(env);
   await env.DB.prepare(
     `UPDATE products
      SET name = ?, subtitle = ?, category = ?, type = ?, thc = ?, strength = ?,
          price = ?, unit = ?, effects = ?, tile = ?, image = ?,
          weight_oz = ?, length_in = ?, width_in = ?, height_in = ?,
          stock_qty = ?, low_stock_threshold = ?, free_shipping = ?,
-         brand = ?, sizes = ?, scent = ?
+         brand = ?, sizes = ?, scent = ?,
+         condition = ?, accepts_offers = ?
      WHERE id = ?`
   )
     .bind(...productParams(data), pid)
@@ -682,6 +816,150 @@ export async function getLatestPaidOrder(env) {
     latestPaidOrderId: Number(row.id),
     latestPaidAt: row.created_at || null,
   };
+}
+
+// ----- Offers (Best Offer, 2026-11-10) -----------------------------------------
+//
+// One row per buyer offer. Money is offer_cents — INTEGER CENTS, the
+// shipping_cents precedent — because an offer is a money promise the
+// buyer typed, and cents keep it exact; rowToOffer also exposes
+// offerAmount (dollars) for display. The lifecycle:
+//   pending   created by POST /api/offers; the seller has 72 hours
+//             (expires_at) before reads lazily flip it to 'expired'.
+//   accepted  an admin accepted; the buyer completes the purchase
+//             via POST /api/offers/:id/pay, which mints a REAL order
+//             through the normal order path and links it (order_id).
+//   declined  an admin declined.
+//   expired   the 72-hour window closed while still pending.
+//   paid      the linked order's payment landed (demo-card pay, or
+//             the Stripe webhook — see markOfferPaidByOrderId).
+// Accepting never touches stock; the decrement happens at the
+// order's own payment commit points, exactly like any other order.
+
+export function rowToOffer(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    productId: row.product_id,
+    size: row.size || null,
+    offerCents: row.offer_cents != null ? Number(row.offer_cents) : null,
+    offerAmount: row.offer_cents != null ? Number(row.offer_cents) / 100 : null,
+    buyerName: row.buyer_name,
+    buyerEmail: row.buyer_email,
+    buyerPhone: row.buyer_phone || null,
+    note: row.note || null,
+    status: row.status,
+    accessToken: row.access_token || null,
+    orderId: row.order_id != null ? Number(row.order_id) : null,
+    createdAt: row.created_at,
+    decidedAt: row.decided_at || null,
+    expiresAt: row.expires_at,
+  };
+}
+
+const OFFER_COLUMNS =
+  'id, product_id, size, offer_cents, buyer_name, buyer_email, buyer_phone, note, status, access_token, order_id, created_at, decided_at, expires_at';
+
+export async function createOffer(env, data) {
+  await ensureOffersTable(env);
+  const result = await env.DB.prepare(
+    `INSERT INTO offers (product_id, size, offer_cents, buyer_name, buyer_email, buyer_phone, note, status, access_token, order_id, created_at, decided_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, ?, NULL, ?)`
+  )
+    .bind(
+      data.productId,
+      data.size || null,
+      Math.round(Number(data.offerCents)),
+      data.buyerName,
+      data.buyerEmail,
+      data.buyerPhone || null,
+      data.note || null,
+      // The buyer's key to this offer — minted exactly like an
+      // order's access token (see newOrderAccessToken).
+      newOrderAccessToken(),
+      new Date().toISOString(),
+      data.expiresAt
+    )
+    .run();
+  return getOffer(env, result.meta.last_row_id);
+}
+
+export async function getOffer(env, id) {
+  const oid = Number(id);
+  if (!Number.isFinite(oid)) return null;
+  await ensureOffersTable(env);
+  const row = await env.DB.prepare(`SELECT ${OFFER_COLUMNS} FROM offers WHERE id = ?`)
+    .bind(oid)
+    .first();
+  return rowToOffer(row);
+}
+
+/** All offers, pending first then newest first — the admin inbox order. */
+export async function listOffers(env) {
+  await ensureOffersTable(env);
+  const { results } = await env.DB.prepare(
+    `SELECT ${OFFER_COLUMNS} FROM offers
+     ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC`
+  ).all();
+  return (results || []).map(rowToOffer);
+}
+
+/**
+ * Patch an offer. Only the keys present in `patch` are written:
+ * { status, decidedAt, orderId }. Returns the fresh offer or null.
+ */
+export async function updateOffer(env, id, patch) {
+  const existing = await getOffer(env, id);
+  if (!existing) return null;
+  const sets = [];
+  const values = [];
+  if (patch.status !== undefined) {
+    sets.push('status = ?');
+    values.push(patch.status);
+  }
+  if (patch.decidedAt !== undefined) {
+    sets.push('decided_at = ?');
+    values.push(patch.decidedAt);
+  }
+  if (patch.orderId !== undefined) {
+    sets.push('order_id = ?');
+    values.push(patch.orderId);
+  }
+  if (sets.length === 0) return existing;
+  await env.DB.prepare(`UPDATE offers SET ${sets.join(', ')} WHERE id = ?`)
+    .bind(...values, existing.id)
+    .run();
+  return getOffer(env, existing.id);
+}
+
+/** The offer (if any) that produced a given order — the webhook lookup. */
+export async function findOfferByOrderId(env, orderId) {
+  const oid = Number(orderId);
+  if (!Number.isFinite(oid)) return null;
+  await ensureOffersTable(env);
+  const row = await env.DB.prepare(`SELECT ${OFFER_COLUMNS} FROM offers WHERE order_id = ?`)
+    .bind(oid)
+    .first();
+  return rowToOffer(row);
+}
+
+/**
+ * Flip the offer behind a paid order to 'paid' (Stripe webhook commit
+ * point; the demo-card path flips it directly in the pay route).
+ * Guarded to 'accepted' so a stray call can never resurrect a
+ * declined/expired offer, and a no-op for ordinary orders (no offer
+ * references them). Returns true when a row flipped.
+ */
+export async function markOfferPaidByOrderId(env, orderId) {
+  const oid = Number(orderId);
+  if (!Number.isFinite(oid)) return false;
+  await ensureOffersTable(env);
+  const result = await env.DB.prepare(
+    "UPDATE offers SET status = 'paid' WHERE order_id = ? AND status = 'accepted'"
+  )
+    .bind(oid)
+    .run();
+  return Boolean(result && result.meta && result.meta.changes > 0);
 }
 
 // ----- Admin accounts -----------------------------------------------------------

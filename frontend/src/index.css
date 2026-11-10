@@ -219,6 +219,47 @@ a.add-btn { text-decoration: none; display: inline-block; }
 .used-disclosure-new {
   color: #b3261e; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
 }
+/* Pricing line (Best Offer, 2026-11-10): the disclosure is now two
+   stacked lines inside the same panel; BEST OFFER wears the shop's
+   gold (red stays reserved for NEW). */
+.used-disclosure p { margin: 0; }
+.used-disclosure p + p { margin-top: 6px; }
+.used-disclosure-best-offer {
+  color: var(--gold); font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+}
+
+/* ---------- Best Offer (2026-11-10) ---------- */
+.card-offer {
+  margin: 6px 0 0; font-size: 12.5px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--gold);
+}
+.pd-offer { margin-top: 14px; }
+.pd-offer-btn { margin-top: 4px; }
+.btn-secondary {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 18px; font-weight: 600; cursor: pointer;
+}
+.btn-secondary:hover { border-color: var(--gold); }
+.offer-form {
+  margin-top: 14px; padding: 16px; border: 1px solid var(--line);
+  border-left: 4px solid var(--gold); border-radius: 10px; background: var(--panel);
+}
+.offer-status-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+}
+.offer-status-product { margin: 0 0 4px; font-size: 22px; }
+.offer-status-amount { margin: 0; color: var(--muted); }
+.status {
+  display: inline-block; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--line); font-size: 12px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+}
+.status.offer-pending { color: #141414; background: var(--gold); border-color: var(--gold); }
+.status.offer-accepted { color: #0c2d16; background: #7dd87d; border-color: #7dd87d; }
+.status.offer-paid { color: #0c2d16; background: #7dd87d; border-color: #7dd87d; }
+.status.offer-declined { color: #fff; background: #b3261e; border-color: #b3261e; }
+.status.offer-expired { color: var(--muted); }
 
 /* ---------- Product detail ---------- */
 .pd-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; padding: 30px 0 20px; }

@@ -102,7 +102,12 @@ function splitTopLevel(s) {
 class StubDB {
   constructor({ includeInventory = true } = {}) {
     this.includeInventory = includeInventory;
-    this.state = { products: [], orders: [] };
+    // offers (Best Offer, 2026-11-10): this suite never creates
+    // offers, but the Stripe webhook now also flips a paid order's
+    // offer via markOfferPaidByOrderId — the stub models the table
+    // as existing-but-empty, exactly what real D1 looks like after
+    // ensureOffersTable runs on a shop with no offers.
+    this.state = { products: [], orders: [], offers: [] };
     this.alters = [];
     this.lastId = { products: 0, orders: 0 };
   }
@@ -185,13 +190,17 @@ class StubDB {
     }
     if (/^INSERT INTO products/i.test(stmt)) return this.insertRow('products', stmt, params);
     if (/^INSERT INTO orders/i.test(stmt)) return this.insertRow('orders', stmt, params);
+    if (/^CREATE TABLE IF NOT EXISTS offers/i.test(stmt)) return { meta: { changes: 0 } };
+    if (/^UPDATE offers/i.test(stmt)) return { meta: { changes: 0 } };
     if (/^UPDATE products/i.test(stmt)) return this.updateRows('products', stmt, params);
     if (/^UPDATE orders/i.test(stmt)) return this.updateRows('orders', stmt, params);
     throw new Error(`StubDB: unhandled statement: ${stmt}`);
   }
 
   selectRows(stmt, params) {
-    const table = /FROM products/i.test(stmt) ? 'products' : 'orders';
+    const table = /FROM offers/i.test(stmt)
+      ? 'offers'
+      : /FROM products/i.test(stmt) ? 'products' : 'orders';
     let rows = [...this.state[table]];
     if (/stripe_session_id = \?/.test(stmt)) {
       rows = rows.filter((r) => r.stripe_session_id === params[0]);

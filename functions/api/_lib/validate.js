@@ -142,6 +142,35 @@ function parseScent(value) {
   return scent === '' ? null : scent;
 }
 
+// Best Offer fields (2026-11-10): condition is the product's stated
+// state — 'new' | 'used' | null (unspecified). The shop's standing
+// disclosure is "All clothes are used unless specified as NEW", so
+// null reads as used for display; the value only becomes load-bearing
+// for offers: a product marked 'new' NEVER accepts offers (owner
+// rule — new items sell at list price only). Input is forgiving on
+// case ('New', 'USED' store lowercase); anything else is a 400.
+function parseCondition(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const condition = String(value).trim().toLowerCase();
+  if (condition === 'new' || condition === 'used') return condition;
+  fail(400, 'condition must be "new" or "used"');
+  return null;
+}
+
+// acceptsOffers flag: the admin's explicit on/off for Best Offer.
+// Stored as 1 / 0 / NULL — NULL means "no explicit choice", and
+// rowToProduct (db.js) applies the default (ON for priced items
+// that are not marked new). Boolean-ish input like freeShipping's:
+// true / 1 / '1' / 'true' -> 1, false / 0 / '0' / 'false' -> 0,
+// absent -> null; anything else is a 400.
+function parseAcceptsOffers(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (value === true || value === 1 || value === '1' || value === 'true') return 1;
+  if (value === false || value === 0 || value === '0' || value === 'false') return 0;
+  fail(400, 'acceptsOffers must be true or false');
+  return null;
+}
+
 function parseTile(value) {
   let tile = value;
   if (typeof tile === 'string') {
@@ -225,6 +254,15 @@ export function normalizeProduct(body, existing) {
     brand: parseBrand(pick('brand')),
     sizes: parseSizes(pick('sizes')),
     scent: parseScent(pick('scent')),
+    // Best Offer (2026-11-10): condition round-trips raw ('new' /
+    // 'used' / null). acceptsOffers falls back to the existing
+    // product's COMPUTED boolean on update (rowToProduct's shape) —
+    // true/false map back to the stored 1/0, so an unrelated edit
+    // preserves the owner's choice; the one lossy corner is a
+    // price-TBD product whose flag was never set (computed false
+    // stores 0), which matches what every client displays anyway.
+    condition: parseCondition(pick('condition')),
+    acceptsOffers: parseAcceptsOffers(pick('acceptsOffers')),
   };
 }
 

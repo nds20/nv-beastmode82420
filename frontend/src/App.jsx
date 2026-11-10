@@ -7,6 +7,7 @@ import Hub from './pages/Hub';
 import ShopHome from './pages/ShopHome';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
+import OfferStatus from './pages/OfferStatus';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import OrderConfirmation from './pages/OrderConfirmation';
@@ -35,6 +36,10 @@ export default function App() {
               <Route index element={<ShopHome />} />
               <Route path="products" element={<Products />} />
               <Route path="product/:id" element={<ProductDetail />} />
+              {/* Best Offer (2026-11-10): the buyer's offer page —
+                  token-keyed, linked from the product page at send
+                  time and reopenable from the same device. */}
+              <Route path="offer/:id" element={<OfferStatus />} />
               <Route path="cart" element={<Cart />} />
               <Route path="checkout" element={<Checkout />} />
               <Route path="order-confirmation" element={<OrderConfirmation />} />

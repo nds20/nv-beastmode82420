@@ -5,6 +5,7 @@ import { useCart } from '../hooks/useCart';
 import { priceLabel } from '../components/ProductCard';
 import { isSoldOut, isLowStock, qtyCapFor } from '../context/CartContext';
 import { categoryLabel } from '../lib/departments';
+import { submitOffer, saveOfferToken } from '../services/offersApi';
 
 // Product detail — route "/shop/product/:id".
 // Clothing (2026-11-09): when the product has a size run, a size
@@ -18,6 +19,15 @@ export default function ProductDetail() {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const [size, setSize] = useState(null);
+  // Best Offer (2026-11-10): the make-an-offer form's state. The
+  // size comes from the detail picker above (same state as Add to
+  // Cart); submitting stores the offer's access token on this
+  // device so the status page can find it again.
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offerForm, setOfferForm] = useState({ amount: '', name: '', email: '', phone: '', note: '' });
+  const [offerBusy, setOfferBusy] = useState(false);
+  const [offerError, setOfferError] = useState('');
+  const [offerSent, setOfferSent] = useState(null);
 
   const product = getProduct(id);
 
@@ -48,6 +58,40 @@ export default function ProductDetail() {
     addToCart(product, qty, size);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1200);
+  };
+
+  // Best Offer submit (server rules in docs/OFFERS.md: below list
+  // price only, size required exactly like Add, 72 hours for the
+  // seller to respond). The token is saved on this device so the
+  // status page can reopen the offer without an account.
+  const offerable = Boolean(product.acceptsOffers) && !soldOut && !tbd;
+  const setOfferField = (field) => (e) =>
+    setOfferForm((f) => ({ ...f, [field]: e.target.value }));
+  const onOfferSubmit = async (e) => {
+    e.preventDefault();
+    if (needsSize && !size) {
+      setOfferError('Pick a size first.');
+      return;
+    }
+    setOfferBusy(true);
+    setOfferError('');
+    try {
+      const created = await submitOffer({
+        productId: product.id,
+        offerAmount: Number(offerForm.amount),
+        name: offerForm.name,
+        email: offerForm.email,
+        ...(offerForm.phone.trim() ? { phone: offerForm.phone.trim() } : {}),
+        ...(offerForm.note.trim() ? { note: offerForm.note.trim() } : {}),
+        ...(needsSize ? { size } : {}),
+      });
+      saveOfferToken(created.id, created.accessToken);
+      setOfferSent(created);
+    } catch (err) {
+      setOfferError(err.message || 'Could not send your offer.');
+    } finally {
+      setOfferBusy(false);
+    }
   };
 
   return (
@@ -145,6 +189,109 @@ export default function ProductDetail() {
           >
             {soldOut ? 'Sold Out' : added ? 'Added to Cart ✓' : 'Add to Cart'}
           </button>
+          {offerable && (
+            <div className="pd-offer">
+              {offerSent ? (
+                <div className="checkout-success">
+                  <h3>Offer sent!</h3>
+                  <p>
+                    The seller has 72 hours to respond. Save this page — it is the only
+                    place to check the answer and pay if your offer is accepted (the
+                    shop does not send email).
+                  </p>
+                  <Link
+                    className="btn"
+                    to={`/shop/offer/${offerSent.id}?token=${encodeURIComponent(offerSent.accessToken || '')}`}
+                  >
+                    Check your offer →
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary pd-offer-btn"
+                    onClick={() => setOfferOpen((o) => !o)}
+                    aria-expanded={offerOpen}
+                  >
+                    or Make an Offer
+                  </button>
+                  {offerOpen && (
+                    <form className="offer-form" onSubmit={onOfferSubmit}>
+                      <div className="field">
+                        <label htmlFor="of-amount">Your offer ($)</label>
+                        <input
+                          id="of-amount"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          required
+                          value={offerForm.amount}
+                          onChange={setOfferField('amount')}
+                          placeholder={`List price is ${priceLabel(product)}`}
+                        />
+                        <p className="hint">
+                          Below the list price — at list price, just add it to your cart.
+                        </p>
+                      </div>
+                      {needsSize && (
+                        <p className="hint">
+                          Size: <strong>{size || 'pick a size above first'}</strong>
+                        </p>
+                      )}
+                      <div className="field-row">
+                        <div className="field">
+                          <label htmlFor="of-name">Your name</label>
+                          <input
+                            id="of-name"
+                            required
+                            value={offerForm.name}
+                            onChange={setOfferField('name')}
+                            autoComplete="name"
+                          />
+                        </div>
+                        <div className="field">
+                          <label htmlFor="of-email">Email</label>
+                          <input
+                            id="of-email"
+                            type="email"
+                            required
+                            value={offerForm.email}
+                            onChange={setOfferField('email')}
+                            autoComplete="email"
+                          />
+                        </div>
+                      </div>
+                      <div className="field">
+                        <label htmlFor="of-phone">Phone (optional)</label>
+                        <input
+                          id="of-phone"
+                          type="tel"
+                          value={offerForm.phone}
+                          onChange={setOfferField('phone')}
+                          autoComplete="tel"
+                        />
+                      </div>
+                      <div className="field">
+                        <label htmlFor="of-note">Note for the seller (optional)</label>
+                        <textarea
+                          id="of-note"
+                          rows="2"
+                          maxLength="500"
+                          value={offerForm.note}
+                          onChange={setOfferField('note')}
+                        />
+                      </div>
+                      {offerError && <p className="form-error">{offerError}</p>}
+                      <button className="btn" type="submit" disabled={offerBusy}>
+                        {offerBusy ? 'Sending…' : 'Send Offer'}
+                      </button>
+                    </form>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {product.about && (
             <div className="pd-about">
               <h3>About This Product</h3>

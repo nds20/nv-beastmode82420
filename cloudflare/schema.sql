@@ -65,7 +65,14 @@ CREATE TABLE IF NOT EXISTS products (
   -- kept for history; the clothing model no longer uses them.)
   brand TEXT,
   sizes TEXT,
-  scent TEXT
+  scent TEXT,
+  -- Best Offer (2026-11-10): condition NULL = unspecified ('new' |
+  -- 'used' when set — a product marked 'new' NEVER accepts offers);
+  -- accepts_offers NULL = no explicit choice (the computed default
+  -- in _lib/db.js applies: ON for priced items), 1 = offers on,
+  -- 0 = offers off. See docs/OFFERS.md.
+  condition TEXT,
+  accepts_offers INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -145,4 +152,31 @@ CREATE TABLE IF NOT EXISTS donations (
   project           TEXT NOT NULL,
   donor_email       TEXT,
   created_at        TEXT NOT NULL
+);
+
+-- Best Offer (owner direction 2026-11-10): one row per buyer offer
+-- on a product (see docs/OFFERS.md and functions/api/_lib/offers.js).
+-- offer_cents is INTEGER CENTS (the orders.shipping_cents precedent —
+-- the other money columns are dollar REALs, so the name carries its
+-- unit). status walks pending -> accepted / declined / expired, and
+-- accepted -> paid when the order it produced (order_id) is paid.
+-- access_token is the buyer's per-offer secret, minted like an
+-- order's. The table is also created lazily at runtime
+-- (ensureOffersTable in functions/api/_lib/db.js), so existing
+-- databases gain it with no migration step.
+CREATE TABLE IF NOT EXISTS offers (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id  INTEGER NOT NULL,
+  size        TEXT,
+  offer_cents INTEGER NOT NULL,
+  buyer_name  TEXT NOT NULL,
+  buyer_email TEXT NOT NULL,
+  buyer_phone TEXT,
+  note        TEXT,
+  status      TEXT NOT NULL DEFAULT 'pending',
+  access_token TEXT,
+  order_id    INTEGER,
+  created_at  TEXT NOT NULL,
+  decided_at  TEXT,
+  expires_at  TEXT NOT NULL
 );

@@ -273,6 +273,30 @@ export async function fetchAdminOrders() {
   return adminFetch('/api/admin/orders');
 }
 
+// ----- Best Offer inbox (2026-11-10 — docs/OFFERS.md) -------------------------
+//
+//   GET  /api/admin/offers                  { offers, counts } —
+//        pending first, newest first; each offer joins its product
+//        name + current list price and a would-be totals preview.
+//   POST /api/admin/offers/:id/accept       decision only — creates
+//        no order; the buyer pays via the offer pay endpoint.
+//   POST /api/admin/offers/:id/decline
+
+/** The Best Offer inbox: { offers: [...], counts: { pending, ... } }. */
+export async function fetchAdminOffers() {
+  return adminFetch('/api/admin/offers');
+}
+
+/** Accept an offer (POST /api/admin/offers/:id/accept). Resolves to the updated offer. */
+export async function acceptAdminOffer(id) {
+  return postJson(`/api/admin/offers/${id}/accept`, {});
+}
+
+/** Decline an offer (POST /api/admin/offers/:id/decline). Resolves to the updated offer. */
+export async function declineAdminOffer(id) {
+  return postJson(`/api/admin/offers/${id}/decline`, {});
+}
+
 /** One order in full (GET /api/admin/orders/:id). */
 export async function fetchAdminOrder(id) {
   return adminFetch(`/api/admin/orders/${id}`);
@@ -373,6 +397,12 @@ function buildProductPayload(form) {
     brand: blankToNull(form.brand),
     sizes: String(form.sizesText || ''),
     scent: blankToNull(form.scent),
+    // Best Offer (2026-11-10): condition ('new' | 'used') and the
+    // acceptsOffers switch ride the same JSON step. For a NEW item
+    // the editor disables the switch and sends false — the server
+    // forces offers off for 'new' regardless (docs/OFFERS.md).
+    condition: form.condition || null,
+    acceptsOffers: Boolean(form.acceptsOffers),
     tile: Array.isArray(form.tile) ? form.tile : undefined,
     weightOz: blankToNull(form.weightOz),
     lengthIn: blankToNull(form.lengthIn),

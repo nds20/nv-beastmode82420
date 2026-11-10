@@ -15,6 +15,11 @@
 //   GET    /api/products/:id             PUT  /api/products/:id       (admin)
 //                                        DELETE /api/products/:id     (admin)
 //   POST   /api/orders
+//   POST   /api/offers                                  (public: make an offer)
+//   GET    /api/offers/:id/status                             (offer token)
+//   POST   /api/offers/:id/pay                                (offer token)
+//   GET    /api/admin/offers            POST /api/admin/offers/:id/accept   (admin)
+//   POST   /api/admin/offers/:id/decline                      (admin)
 //   POST   /api/shipping/quote                                (public)
 //   GET    /api/shipping/debug                                  (admin)
 //   POST   /api/orders/:id/checkout                             (order token)
@@ -57,6 +62,12 @@ import {
   onRequestDelete as productDelete,
 } from '../functions/api/products/[id].js';
 import { onRequestPost as orderCreate } from '../functions/api/orders.js';
+import { onRequestPost as offerCreate } from '../functions/api/offers.js';
+import { onRequestGet as offerStatus } from '../functions/api/offers/[id]/status.js';
+import { onRequestPost as offerPay } from '../functions/api/offers/[id]/pay.js';
+import { onRequestGet as adminOffersList } from '../functions/api/admin/offers.js';
+import { onRequestPost as adminOfferAccept } from '../functions/api/admin/offers/[id]/accept.js';
+import { onRequestPost as adminOfferDecline } from '../functions/api/admin/offers/[id]/decline.js';
 import { onRequestPost as shippingQuote } from '../functions/api/shipping/quote.js';
 import { onRequestGet as shippingDebug } from '../functions/api/shipping/debug.js';
 import { onRequestPost as orderCheckout } from '../functions/api/orders/[id]/checkout.js';
@@ -96,6 +107,12 @@ const ROUTES = [
     handlers: { GET: productGet, PUT: productUpdate, DELETE: productDelete },
   },
   { parts: ['api', 'orders'], handlers: { POST: orderCreate } },
+  { parts: ['api', 'offers'], handlers: { POST: offerCreate } },
+  { parts: ['api', 'offers', ':id', 'status'], handlers: { GET: offerStatus } },
+  { parts: ['api', 'offers', ':id', 'pay'], handlers: { POST: offerPay } },
+  { parts: ['api', 'admin', 'offers'], handlers: { GET: adminOffersList } },
+  { parts: ['api', 'admin', 'offers', ':id', 'accept'], handlers: { POST: adminOfferAccept } },
+  { parts: ['api', 'admin', 'offers', ':id', 'decline'], handlers: { POST: adminOfferDecline } },
   { parts: ['api', 'shipping', 'quote'], handlers: { POST: shippingQuote } },
   { parts: ['api', 'shipping', 'debug'], handlers: { GET: shippingDebug } },
   { parts: ['api', 'orders', ':id', 'checkout'], handlers: { POST: orderCheckout } },

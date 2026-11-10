@@ -139,15 +139,34 @@ lives in `frontend/src/lib/departments.js` — `applyShopFilters`,
 
 Owner policy (2026-11-09): **all clothes are used unless specified
 as NEW.** The shop page (`frontend/src/pages/Products.jsx`) shows
-the disclosure — "All clothes are used unless specified as NEW." —
-**twice**: at the top (directly under the page title, before the
-search/sort row) and again at the bottom, in every catalog state
-including an empty one. One shared component
+the disclosure **twice**: at the top (directly under the page
+title, before the search/sort row) and again at the bottom, in
+every catalog state including an empty one. One shared component
 (`frontend/src/components/UsedClothingDisclosure.jsx`) renders both
-instances identically as a dark notice bar; the word **NEW** is
-styled capital letters, bold and red (`.used-disclosure-new` in
-`index.css`, #b3261e — the sold-out badge red) and is the only red
-in the bar.
+instances identically as a dark notice bar. Since 2026-11-10 the
+disclosure is two lines:
+
+1. "All clothes are used unless specified as NEW." — the word
+   **NEW** is styled capital letters, bold and red
+   (`.used-disclosure-new` in `index.css`, #b3261e — the sold-out
+   badge red) and is the only red in the bar.
+2. "NEW items are priced as listed — no offers. Most used items
+   are **BEST OFFER**: make an offer and the seller decides." —
+   the pricing policy that arrived with Best Offer (below):
+   **BEST OFFER** is styled bold gold (`.used-disclosure-best-offer`).
+   "Most" is the honest word — a seller can switch offers off on
+   an individual used item, while a NEW item NEVER takes offers.
+
+## Best Offer
+
+Make-an-offer (Poshmark-style) is part of the clothing model:
+products carry a `condition` ('new' | 'used' | unspecified) and an
+`accepts_offers` switch, buyers offer below list price, and the
+seller accepts or declines in the admin Offers inbox. The full
+model — eligibility rules (existing unmarked products default to
+offers ON; NEW never), endpoints, money/tax/shipping treatment,
+the 72-hour expiry and the double-accept semantics — lives in
+**docs/OFFERS.md**.
 
 ## The $8.24 test item (nothing item) recipe
 

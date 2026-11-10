@@ -33,6 +33,7 @@ import {
   getOrder,
   updateOrderPayment,
   findOrderByStripeSessionId,
+  markOfferPaidByOrderId,
 } from '../_lib/db.js';
 import { recordDonation } from '../_lib/donations.js';
 import { applyOrderInventory } from '../_lib/inventory.js';
@@ -80,6 +81,10 @@ export const onRequestPost = handle(async ({ request, env }) => {
       // orders. Inside this same not-yet-paid guard, and itself
       // idempotent (inventory_applied), so webhook retries are safe.
       await applyOrderInventory(env, order);
+      // Best Offer (2026-11-10): if this order came from an accepted
+      // offer, the offer is now paid too. Guarded to offers still in
+      // 'accepted' and a no-op for ordinary orders (docs/OFFERS.md).
+      await markOfferPaidByOrderId(env, order.id);
     }
   } else if (event.type === 'checkout.session.expired') {
     const order = await orderForSession(env, session);

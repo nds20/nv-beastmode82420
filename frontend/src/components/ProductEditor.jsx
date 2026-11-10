@@ -61,6 +61,11 @@ function initialForm(product) {
       brand: '',
       sizesText: '',
       scent: '',
+      // Best Offer (2026-11-10): new listings default to Used with
+      // offers on — the shop's disclosure default ("used unless
+      // specified as NEW") and the server's computed default agree.
+      condition: 'used',
+      acceptsOffers: true,
       tile: [...DEFAULT_TILE],
       image: null,
       freeShipping: false,
@@ -83,6 +88,12 @@ function initialForm(product) {
     brand: asText(product.brand),
     sizesText: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
     scent: asText(product.scent),
+    // Best Offer: an unspecified condition reads as Used (the
+    // disclosure default); the offers switch starts from the
+    // product's COMPUTED acceptsOffers, so what the admin sees is
+    // what buyers get.
+    condition: product.condition === 'new' ? 'new' : 'used',
+    acceptsOffers: Boolean(product.acceptsOffers),
     tile:
       Array.isArray(product.tile) && product.tile.length === 2
         ? [...product.tile]
@@ -307,6 +318,41 @@ export default function ProductEditor({
       <p className="hint" style={{ marginTop: -8 }}>
         The card&apos;s background gradient when there is no photo.
       </p>
+
+      <div className="field">
+        <span className="editor-group-label">Condition &amp; offers</span>
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="pe-condition">Condition</label>
+            <select id="pe-condition" value={form.condition} onChange={set('condition')}>
+              <option value="used">Used</option>
+              <option value="new">New</option>
+            </select>
+            <p className="hint">
+              The shop disclosure: everything is used unless it is specified as NEW.
+            </p>
+          </div>
+        </div>
+        <label className="check-line">
+          <input
+            type="checkbox"
+            checked={form.condition !== 'new' && Boolean(form.acceptsOffers)}
+            disabled={form.condition === 'new'}
+            onChange={(e) => setForm((f) => ({ ...f, acceptsOffers: e.target.checked }))}
+          />
+          <span>
+            <strong>Accept offers</strong> — buyers can offer below list price; you accept or
+            decline in the admin Offers inbox
+          </span>
+        </label>
+        {form.condition === 'new' ? (
+          <p className="hint">New items sell at list price — no offers.</p>
+        ) : (
+          <p className="hint">
+            On by default for priced items. Uncheck to sell this one at list price only.
+          </p>
+        )}
+      </div>
 
       <div className="field">
         <label htmlFor="pe-photo">Photo</label>

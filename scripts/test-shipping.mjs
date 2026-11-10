@@ -339,8 +339,12 @@ console.log('db — lazy shipping columns + unconfigured order');
   });
   const order = await res.json();
   // 8 shipping columns + the 4 inventory columns ensureInventoryColumns
-  // adds on the same reads (inventory build, 2026-11-09).
-  check('legacy schema: ensure ALTERed all 8 shipping columns', db.alters.filter((a) => !/stock_qty|low_stock_threshold|free_shipping|inventory_applied/.test(a)).length === 8, db.alters.join(','));
+  // adds on the same reads (inventory build, 2026-11-09) + the 2 Best
+  // Offer product columns ensureOffersColumns adds (2026-11-10 —
+  // amended: the filter below now also excludes condition /
+  // accepts_offers so this check keeps counting exactly the 8
+  // shipping columns it was written for).
+  check('legacy schema: ensure ALTERed all 8 shipping columns', db.alters.filter((a) => !/stock_qty|low_stock_threshold|free_shipping|inventory_applied|condition|accepts_offers/.test(a)).length === 8, db.alters.join(','));
   check(
     'legacy schema: product + order columns both covered',
     db.alters.includes('products.weight_oz') && db.alters.includes('orders.shipping_cents')

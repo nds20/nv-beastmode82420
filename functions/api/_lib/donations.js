@@ -113,8 +113,7 @@ export function ensureDonationsTable(env) {
  * Idempotent: the session id is UNIQUE and INSERT OR IGNORE makes a
  * redelivered webhook a no-op. Returns true when a row was inserted.
  */
-export async function recordDonation(env, session) {
-  await ensureDonationsTable(env);
+export async function recordDonation(env, session) {  await ensureDonationsTable(env);
   const amount = Number(session && session.amount_total);
   if (!session || !session.id || !Number.isInteger(amount) || amount <= 0) {
     return false;
@@ -140,6 +139,24 @@ export async function recordDonation(env, session) {
     )
     .run();
   return Boolean(result && result.meta && result.meta.changes > 0);
+}
+
+/**
+ * True when a donation row already exists for this Checkout Session
+ * id — the presence probe the payments diagnostic
+ * (docs/PAYMENTS_DEBUG.md) uses to report recordedBefore/After around
+ * its reconcile pass. Read-only; the write path stays recordDonation
+ * above (INSERT OR IGNORE is the real idempotency guarantee).
+ */
+export async function donationRecorded(env, sessionId) {
+  if (!sessionId) return false;
+  await ensureDonationsTable(env);
+  const row = await env.DB.prepare(
+    'SELECT id FROM donations WHERE stripe_session_id = ?'
+  )
+    .bind(String(sessionId))
+    .first();
+  return Boolean(row);
 }
 
 /**

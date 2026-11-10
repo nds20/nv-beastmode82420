@@ -155,6 +155,27 @@ async function obtainGmailToken(env) {
   return fetchGmailAccessToken(env);
 }
 
+/**
+ * Diagnostic (docs/PAYMENTS_DEBUG.md): run the SAME refresh-token
+ * exchange a send would perform — through the shared
+ * fetchGmailAccessToken, cache and all — WITHOUT sending anything,
+ * and report only { ok, status, errorCode }. Lets the owner prove
+ * the GOOGLE_OAUTH_* wiring (a bad refresh token answers
+ * invalid_grant here) without a test email. When mail is not
+ * configured no network call happens at all.
+ */
+export async function diagnoseMailToken(env) {
+  if (!mailConfigured(env)) {
+    return { ok: false, status: null, errorCode: 'not_configured' };
+  }
+  const result = await obtainGmailToken(env);
+  if (result.token) return { ok: true, status: 200, errorCode: null };
+  return {
+    ok: false,
+    status: result.status !== undefined ? result.status : null,
+    errorCode: result.errorCode || 'token_failed',
+  };
+}
 /** The current Gmail access token, or null when unconfigured/failed. */
 export async function getGmailAccessToken(env) {
   if (!mailConfigured(env)) return null;

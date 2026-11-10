@@ -31,6 +31,21 @@ export function stripeWebhookConfigured(env) {
   return Boolean(env && env.STRIPE_WEBHOOK_SECRET);
 }
 
+/**
+ * The key MODE of the configured STRIPE_SECRET_KEY, from its prefix
+ * ONLY ('live' | 'test' | 'unknown'), or null when no key is set.
+ * The key value itself never leaves this function — diagnostics
+ * (docs/PAYMENTS_DEBUG.md) report the mode so a test key serving
+ * live traffic (or the reverse) is visible at a glance.
+ */
+export function stripeKeyMode(env) {
+  const key = env && env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+  if (String(key).startsWith('sk_live_')) return 'live';
+  if (String(key).startsWith('sk_test_')) return 'test';
+  return 'unknown';
+}
+
 const toCents = (dollars) => Math.round(Number(dollars) * 100);
 
 /**
@@ -166,6 +181,48 @@ export async function createDonationCheckoutSession(env, { amountCents, project,
     throw new HttpError(502, `Stripe could not create a donation checkout session: ${message}`);
   }
   return { id: data.id, url: data.url };
+}
+
+/**
+ * List recent Checkout Sessions (GET /v1/checkout/sessions) — the
+ * read side the create* helpers never needed, used by the admin
+ * payments diagnostic (docs/PAYMENTS_DEBUG.md) to see what Stripe
+ * actually holds and reconcile it against the local records.
+ *
+ * NEVER throws and NEVER surfaces Stripe's raw error body: returns
+ * { ok: true, sessions } on success, or
+ * { ok: false, status, errorCode } on any failure (HTTP status plus
+ * Stripe's error.code, or 'network' / 'unexpected'). Only the data
+ * array's session objects pass through — callers must still treat
+ * them as Stripe-shaped input and project out only safe fields.
+ */
+export async function listCheckoutSessions(env, { limit = 25 } = {}) {
+  try {
+    const key = env && env.STRIPE_SECRET_KEY;
+    if (!key) return { ok: false, status: null, errorCode: 'not_configured' };
+    const base = env.STRIPE_API_BASE || STRIPE_API_BASE_DEFAULT;
+    const url = `${base}/v1/checkout/sessions?limit=${encodeURIComponent(String(limit))}`;
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${key}` },
+      });
+    } catch {
+      return { ok: false, status: null, errorCode: 'network' };
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const code =
+        data && data.error && typeof data.error.code === 'string' && data.error.code
+          ? data.error.code
+          : 'stripe_error';
+      return { ok: false, status: response.status, errorCode: code };
+    }
+    return { ok: true, sessions: Array.isArray(data.data) ? data.data : [] };
+  } catch {
+    return { ok: false, status: null, errorCode: 'unexpected' };
+  }
 }
 
 async function hmacSha256Hex(secret, payload) {

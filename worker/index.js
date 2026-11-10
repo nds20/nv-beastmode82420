@@ -97,6 +97,7 @@ import { onRequestGet as adminOrdersList } from '../functions/api/admin/orders.j
 import { onRequestGet as adminOrderGet } from '../functions/api/admin/orders/[id].js';
 import { onRequestPatch as adminOrderSeen } from '../functions/api/admin/orders/[id]/seen.js';
 import { onRequestPatch as adminProductStock } from '../functions/api/admin/products/[id]/stock.js';
+import { onRequestPost as adminProductPhoto } from '../functions/api/admin/products/[id]/photo.js';
 import {
   onRequestGet as adminMailDebugGet,
   onRequestPost as adminMailDebugPost,
@@ -149,6 +150,7 @@ const ROUTES = [
   { parts: ['api', 'admin', 'orders', ':id'], handlers: { GET: adminOrderGet } },
   { parts: ['api', 'admin', 'orders', ':id', 'seen'], handlers: { PATCH: adminOrderSeen } },
   { parts: ['api', 'admin', 'products', ':id', 'stock'], handlers: { PATCH: adminProductStock } },
+  { parts: ['api', 'admin', 'products', ':id', 'photo'], handlers: { POST: adminProductPhoto } },
   { parts: ['api', 'admin', 'mail-debug'], handlers: { GET: adminMailDebugGet, POST: adminMailDebugPost } },
 ];
 

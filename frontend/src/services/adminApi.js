@@ -340,10 +340,17 @@ export async function fetchAdminProducts() {
 //
 //   1. The field payload goes as JSON — POST /api/products to create,
 //      PUT /api/products/:id to edit. This is the authoritative save.
-//   2. If a photo file was chosen, it follows as a second PUT whose
-//      multipart body carries ONLY the photo. readProductInput then
-//      yields no fields, normalizeProduct falls back to the saved
-//      product for everything, and attachPhoto swaps the image.
+//   2. If a photo file was chosen, it follows as a dedicated POST to
+//      /api/admin/products/:id/photo whose multipart body carries
+//      ONLY the photo. That endpoint runs readProductInput ->
+//      attachPhoto -> read-back verify and answers { ok, product }
+//      (or { ok:false, stage, error } naming the failing stage), so
+//      a photo failure always carries the server's own words.
+//      (2026-11-10: the photo step used to be a second multipart PUT
+//      to /api/products/:id, which in production died before reaching
+//      the Worker — the client saw a non-JSON edge answer. The
+//      /api/admin namespace serves every other editor write without
+//      that failure; the photo step lives there now.)
 //
 // If step 2 fails (e.g. the deployment has no PRODUCT_PHOTOS bucket —
 // the server answers a clear 400), the error is rethrown with
@@ -438,10 +445,15 @@ export async function saveAdminProduct(form, photoFile) {
   const fd = new FormData();
   fd.append('photo', uploadFile);
   try {
-    return await adminFetch(`/api/products/${saved.id}`, {
-      method: 'PUT',
+    const result = await adminFetch(`/api/admin/products/${saved.id}/photo`, {
+      method: 'POST',
       body: fd,
     });
+    // The photo endpoint answers { ok:true, product } — unwrap to
+    // the product so callers keep the saveAdminProduct contract.
+    // (A failure arrives as a thrown adminFetch error carrying the
+    // endpoint's { ok:false, stage, error } message verbatim.)
+    return result && result.product ? result.product : saved;
   } catch (err) {
     err.savedProduct = saved;
     err.photoFailure = {

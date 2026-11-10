@@ -123,7 +123,28 @@ instead of creating a duplicate.
 
 ## Phone photos
 
-Added 2026-11-10 after a live failure: the owner attached a photo
+**Update 2026-11-10 (later that night) — the photo step moved.**
+Storage was exonerated by the `/api/products/photo-debug` probe
+run live from the owner's signed-in browser: binding present,
+R2 put/get/delete all succeed in 63–197 ms. The failing request
+was the editor's step-2 **multipart PUT to `/api/products/:id`**
+— in production it dies before the Worker's own JSON error
+handling can answer (the client records a `bad-response`: a
+non-JSON edge answer), while every link of the same chain tested
+in isolation (router smoke tests, the staged parse/store path,
+the probe) works. The photo step now posts to
+**`POST /api/admin/products/:id/photo`** — a staged endpoint
+(parse → store → verify read-back) in the `/api/admin` namespace
+that serves every other editor write without this failure. It
+answers `{ ok:true, product, stages }` or
+`{ ok:false, stage, error }` with the real underlying message, so
+any future photo failure names its stage instead of guessing.
+The generic multipart PUT on `/api/products/:id` still exists
+(it is the Pages-ported API contract); the editor no longer
+uses it for photos.
+
+Original note (2026-11-10, earlier): after a live failure — the
+owner attached a photo
 snapped on his iPhone, the details saved, and the photo step died
 with a bare "The admin server could not be reached". Two things
 were wrong: iPhone camera photos are usually **HEIC** (which the

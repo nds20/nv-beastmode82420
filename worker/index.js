@@ -28,6 +28,7 @@
 //   POST   /api/admin/login
 //   GET    /api/admin/setup-status
 //   POST   /api/admin/setup
+//   POST   /api/admin/recovery/reset
 //   GET    /api/admin/orders                                          (admin)
 //   GET    /api/admin/orders/:id                                      (admin)
 //   PATCH  /api/admin/orders/:id/seen                                 (admin)
@@ -65,6 +66,7 @@ import { onRequestGet as customerOrders } from '../functions/api/customers/order
 import { onRequestPost as adminLogin } from '../functions/api/admin/login.js';
 import { onRequestGet as adminSetupStatus } from '../functions/api/admin/setup-status.js';
 import { onRequestPost as adminSetup } from '../functions/api/admin/setup.js';
+import { onRequestPost as adminRecoveryReset } from '../functions/api/admin/recovery/reset.js';
 import { onRequestGet as adminOrdersList } from '../functions/api/admin/orders.js';
 import { onRequestGet as adminOrderGet } from '../functions/api/admin/orders/[id].js';
 import { onRequestPatch as adminOrderSeen } from '../functions/api/admin/orders/[id]/seen.js';
@@ -95,6 +97,7 @@ const ROUTES = [
   { parts: ['api', 'admin', 'login'], handlers: { POST: adminLogin } },
   { parts: ['api', 'admin', 'setup-status'], handlers: { GET: adminSetupStatus } },
   { parts: ['api', 'admin', 'setup'], handlers: { POST: adminSetup } },
+  { parts: ['api', 'admin', 'recovery', 'reset'], handlers: { POST: adminRecoveryReset } },
   { parts: ['api', 'admin', 'orders'], handlers: { GET: adminOrdersList } },
   { parts: ['api', 'admin', 'orders', ':id'], handlers: { GET: adminOrderGet } },
   { parts: ['api', 'admin', 'orders', ':id', 'seen'], handlers: { PATCH: adminOrderSeen } },

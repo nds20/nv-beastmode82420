@@ -13,6 +13,7 @@ import OrderConfirmation from './pages/OrderConfirmation';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import AdminLogin from './pages/AdminLogin';
+import AdminForgot from './pages/AdminForgot';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 
@@ -41,6 +42,7 @@ export default function App() {
               {/* Admin — direct URL only, deliberately not linked
                   from the header, footer, or any public page. */}
               <Route path="admin/login" element={<AdminLogin />} />
+              <Route path="admin/forgot" element={<AdminForgot />} />
               <Route path="admin" element={<AdminDashboard />} />
               <Route path="admin/products" element={<AdminProducts />} />
             </Route>

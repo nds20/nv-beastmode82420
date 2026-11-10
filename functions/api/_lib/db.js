@@ -560,6 +560,33 @@ export async function createAccount(env, username, password) {
   return { username: name, createdAt };
 }
 
+/**
+ * Create OR replace a stored admin account — the write path behind
+ * password recovery (admin/recovery/reset.js). Same row shape as
+ * createAccount; when the username already exists (the primary key is
+ * COLLATE NOCASE, so the match is case-insensitive) only its salt/hash
+ * are replaced and the original created_at is kept. Returns
+ * { username, createdAt, created } — `created` says which happened.
+ */
+export async function upsertAdminAccount(env, username, password) {
+  const name = String(username || '').trim();
+  const existing = await findAccount(env, name);
+  const { salt, hash } = await newPasswordRecord(password);
+  const createdAt = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO admin_accounts (username, salt, hash, created_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(username) DO UPDATE SET salt = excluded.salt, hash = excluded.hash`
+  )
+    .bind(name, salt, hash, createdAt)
+    .run();
+  const saved = await findAccount(env, name);
+  return {
+    username: saved ? saved.username : name,
+    createdAt: saved ? saved.created_at : createdAt,
+    created: !existing,
+  };
+}
+
 /** Constant-time credential check against the stored (hashed) accounts. */
 export async function verifyAccount(env, username, password) {
   const account = await findAccount(env, username);
@@ -660,6 +687,62 @@ export async function verifyCustomerCredentials(env, email, password) {
 }
 
 // ----- App settings (key/value) ---------------------------------------------------
+
+/** Read one app_settings value; null when the key has never been set. */
+export async function getSetting(env, key) {
+  const row = await env.DB.prepare('SELECT value FROM app_settings WHERE key = ?')
+    .bind(key)
+    .first();
+  return row ? row.value : null;
+}
+
+/** Write one app_settings value (insert, or overwrite the existing row). */
+export async function setSetting(env, key, value) {
+  await env.DB.prepare(
+    `INSERT INTO app_settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  )
+    .bind(key, String(value))
+    .run();
+}
+
+// ----- Admin password recovery attempts -----------------------------------------
+//
+// The failed-attempt counter behind POST /api/admin/recovery/reset: a
+// JSON array of epoch-ms timestamps under one app_settings key, pruned
+// to a rolling 60-minute window on every read. Deliberately global
+// rather than per-username — the recovery code is a single master
+// secret, so the guesses worth throttling are guesses at the code.
+
+export const RECOVERY_ATTEMPT_KEY = 'admin_recovery_failed_attempts';
+export const RECOVERY_WINDOW_MS = 60 * 60 * 1000;
+export const RECOVERY_MAX_FAILURES = 5;
+
+/** Failed recovery-code attempts still inside the rolling window. */
+export async function getRecoveryFailures(env, now = Date.now()) {
+  const raw = await getSetting(env, RECOVERY_ATTEMPT_KEY);
+  let parsed = [];
+  try {
+    parsed = raw ? JSON.parse(raw) : [];
+  } catch {
+    parsed = [];
+  }
+  if (!Array.isArray(parsed)) parsed = [];
+  return parsed.filter((t) => typeof t === 'number' && now - t < RECOVERY_WINDOW_MS);
+}
+
+/** Record one failed attempt (window-pruned); returns the new count. */
+export async function recordRecoveryFailure(env, now = Date.now()) {
+  const recent = await getRecoveryFailures(env, now);
+  recent.push(now);
+  await setSetting(env, RECOVERY_ATTEMPT_KEY, JSON.stringify(recent));
+  return recent.length;
+}
+
+/** A successful reset wipes the counter — the lockout is for guessers. */
+export async function clearRecoveryFailures(env) {
+  await setSetting(env, RECOVERY_ATTEMPT_KEY, '[]');
+}
 
 /**
  * The random secret that signs customer session tokens. It is generated

@@ -257,6 +257,16 @@ h1.display, .hero-title {
   border-radius: 8px; padding: 12px 14px; font-size: 15px; font-family: var(--body);
 }
 .field input:focus, .field select:focus { outline: none; border-color: var(--gold); }
+.password-field { display: flex; gap: 8px; }
+.password-field input { flex: 1 1 auto; min-width: 0; }
+.password-toggle {
+  flex: 0 0 auto; background: transparent; border: 1px solid var(--line);
+  border-radius: 8px; color: var(--muted); cursor: pointer;
+  font-family: var(--body); font-size: 12px; font-weight: 700;
+  letter-spacing: 1px; padding: 0 14px; text-transform: uppercase;
+}
+.password-toggle:hover { color: var(--gold); border-color: var(--gold); }
+.password-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-error { color: var(--danger); font-size: 14px; margin: 10px 0; }
 .check-line { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--muted); margin: 14px 0; }

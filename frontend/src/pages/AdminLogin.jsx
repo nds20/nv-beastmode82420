@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   adminLogin,
   adminSetup,
   fetchSetupStatus,
   getAdminToken,
 } from '../services/adminApi';
+import PasswordField from '../components/PasswordField';
 
 // Admin sign in — route "/shop/admin/login". Direct URL only: nothing
 // in the public header or footer links here.
@@ -18,6 +19,10 @@ import {
 //               page labels as such.
 //   - "setup":  POST /api/admin/setup — creates the FIRST stored
 //               admin account; offered only while setupRequired.
+//
+// Password fields use the shared PasswordField (show/hide eye
+// toggle), and login mode carries a "Forgot password?" link to the
+// recovery page ("/shop/admin/forgot" — see docs/ADMIN_RECOVERY.md).
 export default function AdminLogin() {
   const navigate = useNavigate();
   const [mode, setMode] = useState('login');
@@ -101,29 +106,23 @@ export default function AdminLogin() {
             required
           />
         </div>
-        <div className="field">
-          <label htmlFor="adminPassword">Password</label>
-          <input
-            id="adminPassword"
-            type="password"
-            autoComplete={isSetup ? 'new-password' : 'current-password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+        <PasswordField
+          id="adminPassword"
+          label="Password"
+          autoComplete={isSetup ? 'new-password' : 'current-password'}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        {isSetup && (
+          <PasswordField
+            id="adminConfirm"
+            label="Confirm Password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
             required
           />
-        </div>
-        {isSetup && (
-          <div className="field">
-            <label htmlFor="adminConfirm">Confirm Password</label>
-            <input
-              id="adminConfirm"
-              type="password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-            />
-          </div>
         )}
         {error && (
           <p className="form-error" role="alert">
@@ -137,6 +136,11 @@ export default function AdminLogin() {
               ? 'Create Account & Sign In'
               : 'Sign In'}
         </button>
+        {!isSetup && (
+          <p className="form-switch">
+            <Link to="/shop/admin/forgot">Forgot password?</Link>
+          </p>
+        )}
         {status && status.setupRequired && (
           <p className="form-switch">
             {isSetup ? (

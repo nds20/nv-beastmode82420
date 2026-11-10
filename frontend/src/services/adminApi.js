@@ -35,7 +35,7 @@ export const getAdminAuthSource = () => {
   }
 };
 
-function setAdminSession(data) {
+export function setAdminSession(data) {
   try {
     if (data && data.token) localStorage.setItem(TOKEN_KEY, data.token);
     if (data && data.authSource) {
@@ -132,6 +132,26 @@ export async function adminSetup(username, password) {
   const data = await postJson(
     '/api/admin/setup',
     { username, password },
+    { authed: false }
+  );
+  setAdminSession(data);
+  return data;
+}
+
+/**
+ * Password recovery (POST /api/admin/recovery/reset): the owner proves
+ * ownership with the ADMIN_RECOVERY_CODE secret from the site's
+ * Cloudflare settings and sets a new password for a stored admin
+ * account (created by the reset when the username is new). Resolves
+ * to { token, expiresAt, authSource: 'account' } and stores the
+ * session, so a successful reset lands signed in. Server errors
+ * surface verbatim — including the 503 that explains the code has
+ * not been set up yet.
+ */
+export async function adminRecoveryReset(username, recoveryCode, newPassword) {
+  const data = await postJson(
+    '/api/admin/recovery/reset',
+    { username, recoveryCode, newPassword },
     { authed: false }
   );
   setAdminSession(data);

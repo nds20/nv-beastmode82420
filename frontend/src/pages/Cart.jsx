@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
-import { isTbd } from '../context/CartContext.jsx';
+import { isTbd, isTrackedItem, qtyCapFor } from '../context/CartContext.jsx';
 import { money } from '../components/ProductCard';
 
 // Cart — route "/shop/cart". Price-TBD lines stay in the cart, are
@@ -32,6 +32,11 @@ export default function Cart() {
           <section className="cart-lines" aria-label="Order items">
             {items.map((item) => {
               const tbd = isTbd(item);
+              // Inventory (2026-11-09): the stepper caps at the shelf
+              // count for tracked items (updateQty enforces it too);
+              // show a note when the line is sitting at that cap.
+              const capped =
+                isTrackedItem(item) && item.stockQty <= 10 && item.qty >= qtyCapFor(item);
               const tile = Array.isArray(item.tile) ? item.tile : ['#374151', '#111827'];
               return (
                 <div className="cart-line" key={item.id}>
@@ -77,6 +82,9 @@ export default function Cart() {
                     >
                       Remove
                     </button>
+                    {capped && (
+                      <div className="cl-sub">Only {item.stockQty} in stock — quantity capped</div>
+                    )}
                   </div>
                 </div>
               );

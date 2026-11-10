@@ -36,6 +36,33 @@ function parseShippingMeasure(value, field, max) {
   return num;
 }
 
+// Inventory fields (2026-11-09): stockQty / lowStockThreshold are
+// integer counts. An unset stockQty stays null — the product is
+// UNTRACKED and sells exactly as products always have (see
+// _lib/inventory.js). A set value must be a whole number in range;
+// anything else is a 400, never rounded into place.
+export const MAX_STOCK_QTY = 100000;
+
+function parseStockInteger(value, field, max) {
+  const num = parseOptionalNumber(value, field);
+  if (num === null) return null;
+  if (!Number.isInteger(num) || num < 0 || num > max) {
+    fail(400, `${field} must be a whole number between 0 and ${max}`);
+  }
+  return num;
+}
+
+// A tracked product at or below this many units reads as "low stock"
+// when it has no threshold of its own. One constant, one place —
+// _lib/inventory.js re-exports it and the storefront mirrors it.
+export const DEFAULT_LOW_STOCK_THRESHOLD = 3;
+
+// Free-shipping flag: boolean-ish admin input (true / 1 / '1' / 'true'
+// count as on — multipart forms send strings); anything else is off.
+function parseFreeShipping(value) {
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
 function parseEffects(value) {
   if (typeof value === 'string' && value.trim().startsWith('[')) {
     // Multipart forms send the array JSON-encoded (see buildProductBody).
@@ -119,6 +146,9 @@ export function normalizeProduct(body, existing) {
     lengthIn: parseShippingMeasure(pick('lengthIn'), 'lengthIn', 108),
     widthIn: parseShippingMeasure(pick('widthIn'), 'widthIn', 108),
     heightIn: parseShippingMeasure(pick('heightIn'), 'heightIn', 108),
+    stockQty: parseStockInteger(pick('stockQty'), 'stockQty', MAX_STOCK_QTY),
+    lowStockThreshold: parseStockInteger(pick('lowStockThreshold'), 'lowStockThreshold', MAX_STOCK_QTY),
+    freeShipping: parseFreeShipping(pick('freeShipping')),
   };
 }
 
@@ -160,6 +190,14 @@ export async function normalizeOrder(body, getProductById, quoteShippingFn) {
     const qty = Number(raw.qty);
     if (!Number.isInteger(qty) || qty < 1 || qty > 10) {
       fail(400, `Quantity for "${product.name}" must be a whole number between 1 and 10.`);
+    }
+    // Inventory gate (2026-11-09): a TRACKED product (stockQty set)
+    // can never be ordered past its count. This is a placement-time
+    // check only — the count itself is decremented at the payment
+    // commit point (see _lib/inventory.js). Untracked products
+    // (stockQty null) skip this entirely, as they always have.
+    if (product.stockQty !== null && product.stockQty !== undefined && qty > product.stockQty) {
+      fail(400, `"${product.name}" only has ${product.stockQty} left.`);
     }
     const unitPrice = round2(product.price);
     items.push({

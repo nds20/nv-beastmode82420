@@ -27,6 +27,10 @@ import { money, priceLabel } from '../components/ProductCard';
 //
 // A 401 from any call means the token expired or was revoked:
 // adminApi clears it, and this page sends the admin back to sign in.
+
+// Mirrors DEFAULT_LOW_STOCK_THRESHOLD in functions/api/_lib/validate.js.
+const ADMIN_LOW_STOCK_DEFAULT = 3;
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const hasToken = Boolean(getAdminToken());
@@ -333,21 +337,38 @@ export default function AdminDashboard() {
       )}
       {products !== null && products.length > 0 && (
         <div className="orders-list">
-          {products.map((p) => (
-            <div className="order-row" key={p.id}>
-              <div>
-                <div className="ord-id">{p.name}</div>
-                <div className="ord-meta">
-                  {p.subtitle} · {p.category}
-                  {p.strength ? ` · ${p.strength}` : ''}
+          {products.map((p) => {
+            // Inventory (2026-11-09): stock state at a glance. Counts
+            // are managed through the API (PATCH
+            // /api/admin/products/:id/stock — see docs/INVENTORY.md).
+            const threshold =
+              p.lowStockThreshold != null ? p.lowStockThreshold : ADMIN_LOW_STOCK_DEFAULT;
+            const stockLabel =
+              p.stockQty == null
+                ? 'Untracked'
+                : p.stockQty === 0
+                  ? 'Sold out'
+                  : `${p.stockQty} in stock${p.stockQty <= threshold ? ' · Low' : ''}`;
+            return (
+              <div className="order-row" key={p.id}>
+                <div>
+                  <div className="ord-id">{p.name}</div>
+                  <div className="ord-meta">
+                    {p.subtitle} · {p.category}
+                    {p.strength ? ` · ${p.strength}` : ''}
+                  </div>
+                  <div className="ord-meta">
+                    Stock: {stockLabel}
+                    {p.freeShipping ? ' · Free shipping' : ''}
+                  </div>
+                </div>
+                <div>
+                  <div className="ord-id">{priceLabel(p)}</div>
+                  <div className="ord-meta">per {p.unit}</div>
                 </div>
               </div>
-              <div>
-                <div className="ord-id">{priceLabel(p)}</div>
-                <div className="ord-meta">per {p.unit}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </main>

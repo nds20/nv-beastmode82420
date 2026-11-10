@@ -7,7 +7,13 @@
 // Handled events (order payment lifecycle — the admin Orders tab shows
 // the result):
 //   checkout.session.completed        -> paymentStatus 'paid', recording
-//                                        the payment intent id
+//                                        the payment intent id, AND the
+//                                        order's stock decrement (the
+//                                        payment commit point for
+//                                        inventory — _lib/inventory.js;
+//                                        idempotent via the order's
+//                                        inventory_applied flag, so
+//                                        redeliveries never double-count)
 //   checkout.session.expired          -> a 'pending' order returns to
 //                                        'unpaid' (the buyer can retry);
 //                                        a paid order is never downgraded
@@ -29,6 +35,7 @@ import {
   findOrderByStripeSessionId,
 } from '../_lib/db.js';
 import { recordDonation } from '../_lib/donations.js';
+import { applyOrderInventory } from '../_lib/inventory.js';
 import { stripeWebhookConfigured, verifyWebhookSignature } from '../_lib/stripe.js';
 
 async function orderForSession(env, session) {
@@ -69,6 +76,10 @@ export const onRequestPost = handle(async ({ request, env }) => {
             ? session.payment_intent
             : order.stripePaymentIntentId,
       });
+      // Payment confirmed = the inventory commit point for Stripe
+      // orders. Inside this same not-yet-paid guard, and itself
+      // idempotent (inventory_applied), so webhook retries are safe.
+      await applyOrderInventory(env, order);
     }
   } else if (event.type === 'checkout.session.expired') {
     const order = await orderForSession(env, session);

@@ -11,6 +11,7 @@ import { handle, json } from './_lib/http.js';
 import { getProduct, createOrder, getCustomerTokenSecret } from './_lib/db.js';
 import { normalizeOrder } from './_lib/validate.js';
 import { quoteShipping } from './_lib/shipping.js';
+import { applyOrderInventory } from './_lib/inventory.js';
 import { verifyCustomerToken } from './_lib/auth.js';
 
 export const onRequestPost = handle(async ({ request, env }) => {
@@ -31,6 +32,17 @@ export const onRequestPost = handle(async ({ request, env }) => {
     if (payload) data.customer = { ...data.customer, accountId: Number(payload.sub) };
   }
 
-  const order = await createOrder(env, data);
+  let order = await createOrder(env, data);
+  // Inventory commit point for the DEMO-card path (2026-11-09): when
+  // the order carries demo payment (normalizeOrder reduced a card
+  // number to { method, last4 }), placement is the commit — this flow
+  // has no webhook and never marks the order paid, so this is the one
+  // moment stock can move. Stripe-path orders are created with NO
+  // payment and are decremented later by the webhook instead; orders
+  // with no payment at all (e.g. a failed submit retried later) are
+  // not decremented here. See _lib/inventory.js.
+  if (order.payment) {
+    order = await applyOrderInventory(env, order);
+  }
   return json(order, 201);
 });

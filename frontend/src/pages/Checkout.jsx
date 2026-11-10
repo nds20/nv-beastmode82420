@@ -281,7 +281,16 @@ export default function Checkout() {
       let saved = null;
       try {
         saved = await submitOrder(orderPayload);
-      } catch {
+      } catch (err) {
+        // A 400 is the server REFUSING the order (validation — e.g.
+        // insufficient stock, 2026-11-09), not a lost connection:
+        // surface its message through the normal submit-error path
+        // and stop. Only genuine submission failures (no API behind
+        // the page) fall back to the pending queue below.
+        if (err && err.status === 400) {
+          setSubmitError(err.message);
+          return;
+        }
         queuePendingOrder(orderPayload);
       }
       const orderId = saved && saved.id != null ? `ORD-${saved.id}` : `ORD-${Date.now()}`;

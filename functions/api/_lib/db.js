@@ -10,7 +10,10 @@
 //                   Shipping adds four nullable REAL columns (weight_oz,
 //                   length_in, width_in, height_in) — NULL means the
 //                   admin has not measured the product and _lib/shipping.js
-//                   uses its documented defaults.
+//                   uses its documented defaults. Inventory (2026-11-09)
+//                   adds `stock_qty` / `low_stock_threshold` (INTEGER,
+//                   NULL = untracked / default threshold — see
+//                   _lib/inventory.js) and `free_shipping` (0/1).
 //   orders          one row per order; `items`, `customer` and `payment`
 //                   are TEXT columns holding JSON (payment is NULL or a
 //                   JSON object with only { method, last4 } — full card
@@ -25,7 +28,9 @@
 //                   adds `shipping_cents` (INTEGER cents — the order's
 //                   other money columns are dollars, so the name carries
 //                   its unit), `shipping_service`, `shipping_label` and
-//                   `shipping_weight_oz`.
+//                   `shipping_weight_oz`. Inventory adds
+//                   `inventory_applied` (0/1: stock has been decremented
+//                   for this order — see _lib/inventory.js).
 //   admin_accounts  username (case-insensitive PK), salt, hash, created_at
 //                   — passwords only ever as PBKDF2 hashes (see auth.js).
 //   customers       shopper accounts: incrementing id, name, unique
@@ -110,6 +115,54 @@ export function ensureShippingColumns(env) {
   return shippingColumnsPromise;
 }
 
+// ----- Inventory columns (lazy ensure) ----------------------------------------
+//
+// Same lazy pattern as shipping above (owner direction 2026-11-09):
+// products gain stock_qty / low_stock_threshold / free_shipping and
+// orders gain inventory_applied. NULL stock_qty means the product is
+// UNTRACKED — it sells exactly as products always have, with no count
+// and no decrement — so every product that exists today stays
+// untracked until the owner sets a count. cloudflare/schema.sql
+// carries the columns for fresh installs and
+// cloudflare/migration-inventory.sql documents the same ALTERs.
+
+const INVENTORY_COLUMNS = {
+  products: [
+    ['stock_qty', 'INTEGER'],
+    ['low_stock_threshold', 'INTEGER'],
+    ['free_shipping', 'INTEGER NOT NULL DEFAULT 0'],
+  ],
+  orders: [
+    ['inventory_applied', 'INTEGER NOT NULL DEFAULT 0'],
+  ],
+};
+
+let inventoryColumnsPromise = null;
+
+export function ensureInventoryColumns(env) {
+  if (!inventoryColumnsPromise) {
+    inventoryColumnsPromise = (async () => {
+      for (const [table, columns] of Object.entries(INVENTORY_COLUMNS)) {
+        // eslint-disable-next-line no-await-in-loop
+        const { results } = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+        const existing = new Set((results || []).map((row) => row.name));
+        for (const [name, type] of columns) {
+          if (!existing.has(name)) {
+            // eslint-disable-next-line no-await-in-loop
+            await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run();
+          }
+        }
+      }
+      return true;
+    })().catch((err) => {
+      // Same retry rule as the shipping ensure: never poison the isolate.
+      inventoryColumnsPromise = null;
+      throw err;
+    });
+  }
+  return inventoryColumnsPromise;
+}
+
 // ----- Products ---------------------------------------------------------------
 
 export function rowToProduct(row) {
@@ -133,14 +186,25 @@ export function rowToProduct(row) {
     lengthIn: row.length_in != null ? row.length_in : null,
     widthIn: row.width_in != null ? row.width_in : null,
     heightIn: row.height_in != null ? row.height_in : null,
+    // Inventory (nullable; NULL stock = untracked, sells as always).
+    // `available` is computed here so every client agrees: untracked
+    // products are always available; tracked ones are available while
+    // at least one unit remains.
+    stockQty: row.stock_qty != null ? Number(row.stock_qty) : null,
+    lowStockThreshold: row.low_stock_threshold != null ? Number(row.low_stock_threshold) : null,
+    available: row.stock_qty == null ? true : Number(row.stock_qty) > 0,
+    // Free shipping (0/1 in the table): the product is excluded from
+    // the shipping package math entirely (see _lib/shipping.js).
+    freeShipping: row.free_shipping ? true : false,
   };
 }
 
 const PRODUCT_COLUMNS =
-  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in';
+  'id, name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping';
 
 export async function listProducts(env) {
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY id ASC`
   ).all();
@@ -151,6 +215,7 @@ export async function getProduct(env, id) {
   const pid = Number(id);
   if (!Number.isFinite(pid)) return null;
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const row = await env.DB.prepare(
     `SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`
   )
@@ -176,14 +241,18 @@ function productParams(data) {
     data.lengthIn != null ? data.lengthIn : null,
     data.widthIn != null ? data.widthIn : null,
     data.heightIn != null ? data.heightIn : null,
+    data.stockQty != null ? data.stockQty : null,
+    data.lowStockThreshold != null ? data.lowStockThreshold : null,
+    data.freeShipping ? 1 : 0,
   ];
 }
 
 export async function createProduct(env, data) {
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const result = await env.DB.prepare(
-    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, subtitle, category, type, thc, strength, price, unit, effects, tile, image, weight_oz, length_in, width_in, height_in, stock_qty, low_stock_threshold, free_shipping)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(...productParams(data))
     .run();
@@ -194,16 +263,51 @@ export async function updateProduct(env, id, data) {
   const pid = Number(id);
   if (!Number.isFinite(pid)) return null;
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   await env.DB.prepare(
     `UPDATE products
      SET name = ?, subtitle = ?, category = ?, type = ?, thc = ?, strength = ?,
          price = ?, unit = ?, effects = ?, tile = ?, image = ?,
-         weight_oz = ?, length_in = ?, width_in = ?, height_in = ?
+         weight_oz = ?, length_in = ?, width_in = ?, height_in = ?,
+         stock_qty = ?, low_stock_threshold = ?, free_shipping = ?
      WHERE id = ?`
   )
     .bind(...productParams(data), pid)
     .run();
   return getProduct(env, pid);
+}
+
+/**
+ * Set a product's tracked stock count to an absolute value (the admin
+ * stock endpoint's SET mode and its restock path). The caller
+ * validates; this writes and returns the fresh product.
+ */
+export async function setProductStock(env, id, stockQty) {
+  const pid = Number(id);
+  if (!Number.isFinite(pid)) return null;
+  await ensureInventoryColumns(env);
+  await env.DB.prepare('UPDATE products SET stock_qty = ? WHERE id = ?')
+    .bind(Math.max(0, Math.trunc(Number(stockQty)) || 0), pid)
+    .run();
+  return getProduct(env, pid);
+}
+
+/**
+ * Decrement a tracked product's stock by `qty`, floored at 0 — one
+ * atomic UPDATE, so concurrent payments can oversell by a hair (the
+ * placement check in validate.js is the real gate) but can never
+ * drive the count negative. Untracked rows (stock_qty NULL) are
+ * untouched by the IS NOT NULL guard. See _lib/inventory.js.
+ */
+export async function decrementProductStock(env, id, qty) {
+  const pid = Number(id);
+  if (!Number.isFinite(pid)) return;
+  await ensureInventoryColumns(env);
+  await env.DB.prepare(
+    'UPDATE products SET stock_qty = MAX(0, stock_qty - ?) WHERE id = ? AND stock_qty IS NOT NULL'
+  )
+    .bind(Math.max(0, Math.trunc(Number(qty)) || 0), pid)
+    .run();
 }
 
 /** Point a product at a new image URL (used after an R2 photo upload). */
@@ -256,15 +360,21 @@ export function rowToOrder(row) {
     shippingService: row.shipping_service || null,
     shippingLabel: row.shipping_label || null,
     shippingWeightOz: row.shipping_weight_oz != null ? Number(row.shipping_weight_oz) : null,
+    // Inventory (migration-inventory.sql + lazy ensure): 1 once the
+    // order's stock decrement has been applied at its payment commit
+    // point — the idempotency flag for _lib/inventory.js. Orders from
+    // before inventory read as 0.
+    inventoryApplied: row.inventory_applied ? 1 : 0,
   };
 }
 
 const ORDER_COLUMNS =
-  'id, items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token, shipping_cents, shipping_service, shipping_label, shipping_weight_oz';
+  'id, items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token, shipping_cents, shipping_service, shipping_label, shipping_weight_oz, inventory_applied';
 
 /** All orders, newest first — same as the Node orders store. */
 export async function listOrders(env) {
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${ORDER_COLUMNS} FROM orders ORDER BY id DESC`
   ).all();
@@ -275,6 +385,7 @@ export async function getOrder(env, id) {
   const oid = Number(id);
   if (!Number.isFinite(oid)) return null;
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const row = await env.DB.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE id = ?`)
     .bind(oid)
     .first();
@@ -289,9 +400,10 @@ export function newOrderAccessToken() {
 
 export async function createOrder(env, data) {
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const result = await env.DB.prepare(
-    `INSERT INTO orders (items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token, shipping_cents, shipping_service, shipping_label, shipping_weight_oz)
-     VALUES (?, ?, ?, ?, ?, ?, 'new', ?, NULL, 'unpaid', NULL, NULL, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (items, subtotal, tax, total, customer, payment, status, created_at, seen_at, payment_status, stripe_session_id, stripe_payment_intent_id, access_token, shipping_cents, shipping_service, shipping_label, shipping_weight_oz, inventory_applied)
+     VALUES (?, ?, ?, ?, ?, ?, 'new', ?, NULL, 'unpaid', NULL, NULL, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       JSON.stringify(data.items),
@@ -306,10 +418,23 @@ export async function createOrder(env, data) {
       data.shippingCents != null ? Math.round(Number(data.shippingCents)) || 0 : 0,
       data.shippingService || null,
       data.shippingLabel || null,
-      data.shippingWeightOz != null ? Number(data.shippingWeightOz) : null
+      data.shippingWeightOz != null ? Number(data.shippingWeightOz) : null,
+      // Stock is decremented at the payment commit point, never at
+      // insert — every order starts un-applied (see _lib/inventory.js).
+      0
     )
     .run();
   return getOrder(env, result.meta.last_row_id);
+}
+
+/** Stamp an order's inventory decrement as applied (idempotency flag). */
+export async function setOrderInventoryApplied(env, id) {
+  const oid = Number(id);
+  if (!Number.isFinite(oid)) return;
+  await ensureInventoryColumns(env);
+  await env.DB.prepare('UPDATE orders SET inventory_applied = 1 WHERE id = ?')
+    .bind(oid)
+    .run();
 }
 
 /**
@@ -346,6 +471,7 @@ export async function updateOrderPayment(env, id, patch) {
 export async function findOrderByStripeSessionId(env, sessionId) {
   if (!sessionId) return null;
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const row = await env.DB.prepare(
     `SELECT ${ORDER_COLUMNS} FROM orders WHERE stripe_session_id = ?`
   )
@@ -385,6 +511,7 @@ export async function listOrdersForCustomer(env, customerId) {
   const cid = Number(customerId);
   if (!Number.isFinite(cid)) return [];
   await ensureShippingColumns(env);
+  await ensureInventoryColumns(env);
   const { results } = await env.DB.prepare(
     `SELECT ${ORDER_COLUMNS} FROM orders
      WHERE json_extract(customer, '$.accountId') = ?

@@ -18,6 +18,11 @@
 //   * When USPS IS configured but unreachable at quote time, the shop
 //     offers ONE flat-rate fallback (FALLBACK_FLAT_CENTS) instead of
 //     blocking the sale.
+//   * Products flagged free_shipping never enter the package math at
+//     all (owner direction 2026-11-09, for the $0.50 test product):
+//     their weight and dimensions are excluded, and a cart made ONLY
+//     of free-shipping items ships for $0 — no options are presented
+//     and no shipping service is required, quoted or charged.
 
 import { uspsConfigured, quoteUspsRates } from './usps.js';
 
@@ -58,6 +63,9 @@ export function computePackage(entries) {
   let widthIn = 0;
   let heightIn = 0;
   for (const { product, qty } of entries) {
+    // Free-shipping products are excluded entirely — they add no
+    // weight and do not size the parcel (see the header note).
+    if (product && product.freeShipping) continue;
     const oz = Number(product && product.weightOz) > 0 ? Number(product.weightOz) : DEFAULT_WEIGHT_OZ;
     weightOz += oz * qty;
     lengthIn = Math.max(lengthIn, Number(product && product.lengthIn) > 0 ? Number(product.lengthIn) : DEFAULT_LENGTH_IN);
@@ -73,12 +81,31 @@ export function computePackage(entries) {
  * Returns:
  *   { configured: false, options: [], weightOz, weightLb }
  *     — USPS not configured; caller charges no shipping.
+ *   { configured: false, options: [], weightOz: 0, freeShippingOnly: true }
+ *     — every item ships free; caller charges no shipping and must
+ *       not require a service choice (validate.js relies on this).
  *   { configured: true, options: [...], weightOz, weightLb }
  *     — live USPS options, or the single flat-rate fallback when the
  *       USPS call failed (the fallback option's service is 'standard').
  * Never throws for a USPS outage; callers may still validate the ZIP.
  */
 export async function quoteShipping(env, entries, destZip) {
+  // All-free carts short-circuit before any USPS call: there is no
+  // parcel to price. `configured: false` is deliberate — checkout and
+  // order placement both treat it as "no shipping to choose or
+  // charge", which is exactly the free-shipping outcome.
+  if (entries.length > 0 && entries.every(({ product }) => product && product.freeShipping)) {
+    return {
+      configured: false,
+      options: [],
+      weightOz: 0,
+      weightLb: 0,
+      lengthIn: 0,
+      widthIn: 0,
+      heightIn: 0,
+      freeShippingOnly: true,
+    };
+  }
   const parcel = computePackage(entries);
   if (!uspsConfigured(env)) {
     return { configured: false, options: [], ...parcel };

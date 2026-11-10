@@ -31,6 +31,7 @@
 //   GET    /api/admin/orders                                          (admin)
 //   GET    /api/admin/orders/:id                                      (admin)
 //   PATCH  /api/admin/orders/:id/seen                                 (admin)
+//   PATCH  /api/admin/products/:id/stock                              (admin)
 //   GET    /api/photos/<key...>  — uploaded photos, served from R2
 //
 // Configuration lives in ../wrangler.toml: the D1 (`DB`) and R2
@@ -67,6 +68,7 @@ import { onRequestPost as adminSetup } from '../functions/api/admin/setup.js';
 import { onRequestGet as adminOrdersList } from '../functions/api/admin/orders.js';
 import { onRequestGet as adminOrderGet } from '../functions/api/admin/orders/[id].js';
 import { onRequestPatch as adminOrderSeen } from '../functions/api/admin/orders/[id]/seen.js';
+import { onRequestPatch as adminProductStock } from '../functions/api/admin/products/[id]/stock.js';
 import { onRequestGet as photoServe } from '../functions/api/photos/[[path]].js';
 
 // Fixed routes; ":name" captures one path segment into params, exactly
@@ -96,6 +98,7 @@ const ROUTES = [
   { parts: ['api', 'admin', 'orders'], handlers: { GET: adminOrdersList } },
   { parts: ['api', 'admin', 'orders', ':id'], handlers: { GET: adminOrderGet } },
   { parts: ['api', 'admin', 'orders', ':id', 'seen'], handlers: { PATCH: adminOrderSeen } },
+  { parts: ['api', 'admin', 'products', ':id', 'stock'], handlers: { PATCH: adminProductStock } },
 ];
 
 function decodeSegment(segment) {

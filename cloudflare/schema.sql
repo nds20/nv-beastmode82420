@@ -49,7 +49,15 @@ CREATE TABLE IF NOT EXISTS products (
   weight_oz REAL,
   length_in REAL,
   width_in  REAL,
-  height_in REAL
+  height_in REAL,
+  -- Inventory (2026-11-09): stock_qty NULL = UNTRACKED (sells with no
+  -- count/decrement — the pre-inventory behavior);
+  -- low_stock_threshold NULL = DEFAULT_LOW_STOCK_THRESHOLD (3) in
+  -- _lib/validate.js; free_shipping 1 = excluded from the shipping
+  -- package math entirely (see _lib/shipping.js).
+  stock_qty           INTEGER,
+  low_stock_threshold INTEGER,
+  free_shipping       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS orders (
@@ -74,7 +82,11 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_cents    INTEGER NOT NULL DEFAULT 0,
   shipping_service  TEXT,
   shipping_label    TEXT,
-  shipping_weight_oz REAL
+  shipping_weight_oz REAL,
+  -- Inventory (2026-11-09): 1 once the order's stock decrement has
+  -- been applied at its payment commit point — the idempotency flag
+  -- for _lib/inventory.js.
+  inventory_applied INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS admin_accounts (

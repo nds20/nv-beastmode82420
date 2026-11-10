@@ -108,6 +108,10 @@ these values; never paste the secret into chat or code.
   the product create/update API fields `weightOz`, `lengthIn`,
   `widthIn`, `heightIn` (validated: > 0, weight ≤ 1120 oz, dims
   ≤ 108 in).
+- A product flagged **`freeShipping: true`** (same create/update API;
+  see `docs/INVENTORY.md`) is excluded from the package weight and
+  dimensions entirely, and a cart of only free-shipping products
+  ships for $0 — no options presented, no service required.
 - Existing databases gain the new columns automatically at runtime
   (`ensureShippingColumns` in `_lib/db.js`, the lazy pattern the
   donations table uses); `cloudflare/migration-shipping.sql`

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { priceLabel } from '../components/ProductCard';
+import { isSoldOut, isLowStock, qtyCapFor } from '../context/CartContext';
 
 // Product detail — route "/shop/product/:id".
 export default function ProductDetail() {
@@ -27,8 +28,14 @@ export default function ProductDetail() {
 
   const tile = Array.isArray(product.tile) ? product.tile : ['#374151', '#111827'];
   const tbd = product.price == null;
+  // Inventory (2026-11-09): tracked products cap the stepper at the
+  // shelf count and disable Add entirely at 0.
+  const soldOut = isSoldOut(product);
+  const lowStock = isLowStock(product);
+  const qtyCap = qtyCapFor(product);
 
   const onAdd = () => {
+    if (soldOut) return;
     addToCart(product, qty);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1200);
@@ -46,6 +53,7 @@ export default function ProductDetail() {
             style={{ background: `linear-gradient(135deg, ${tile[0]}, ${tile[1]})` }}
           >
             <img src={product.image} alt={product.name} />
+            {soldOut && <span className="stock-badge">Sold Out</span>}
           </div>
         </section>
         <section>
@@ -75,6 +83,8 @@ export default function ProductDetail() {
             </div>
           </div>
           <div className={`pd-price${tbd ? ' tbd' : ''}`}>{priceLabel(product)}</div>
+          {soldOut && <p className="stock-note">Sold out</p>}
+          {lowStock && <p className="stock-note">Only {product.stockQty} left</p>}
           <div className="pd-qty">
             <label htmlFor="pdQtyVal">Quantity:</label>
             <div className="qty-control">
@@ -91,14 +101,19 @@ export default function ProductDetail() {
               <button
                 type="button"
                 aria-label="Increase quantity"
-                onClick={() => setQty((q) => Math.min(10, q + 1))}
+                onClick={() => setQty((q) => Math.min(qtyCap, q + 1))}
               >
                 +
               </button>
             </div>
           </div>
-          <button className={`btn pd-add${added ? ' added' : ''}`} onClick={onAdd} type="button">
-            {added ? 'Added to Cart ✓' : 'Add to Cart'}
+          <button
+            className={`btn pd-add${added ? ' added' : ''}`}
+            onClick={onAdd}
+            type="button"
+            disabled={soldOut}
+          >
+            {soldOut ? 'Sold Out' : added ? 'Added to Cart ✓' : 'Add to Cart'}
           </button>
           {product.about && (
             <div className="pd-about">

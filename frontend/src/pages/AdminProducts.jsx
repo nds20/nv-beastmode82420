@@ -143,8 +143,8 @@ export default function AdminProducts() {
         <Link className="admin-tab" to="/shop/admin">
           Dashboard
         </Link>
-        <span className="admin-tab is-active" aria-current="page">
-          Products
+        <span className="admin-tab admin-tab-action is-active" aria-current="page">
+          + Add Product
         </span>
       </nav>
 

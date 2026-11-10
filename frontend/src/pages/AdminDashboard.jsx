@@ -322,8 +322,8 @@ export default function AdminDashboard() {
         <span className="admin-tab is-active" aria-current="page">
           Dashboard
         </span>
-        <Link className="admin-tab" to="/shop/admin/products">
-          Products
+        <Link className="admin-tab admin-tab-action" to="/shop/admin/products">
+          + Add Product
         </Link>
       </nav>
 

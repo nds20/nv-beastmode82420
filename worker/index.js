@@ -71,7 +71,7 @@ import { onRequestPost as adminOfferAccept } from '../functions/api/admin/offers
 import { onRequestPost as adminOfferDecline } from '../functions/api/admin/offers/[id]/decline.js';
 import { onRequestPost as shippingQuote } from '../functions/api/shipping/quote.js';
 import { onRequestGet as shippingDebug } from '../functions/api/shipping/debug.js';
-import { onRequestGet as photoDebug } from '../functions/api/products/photo-debug.js';
+import { onRequestGet as photoDebug, onRequestPost as photoDebugPost } from '../functions/api/products/photo-debug.js';
 import { onRequestPost as orderCheckout } from '../functions/api/orders/[id]/checkout.js';
 import { onRequestGet as orderStatus } from '../functions/api/orders/[id]/status.js';
 import { onRequestGet as orderSignal } from '../functions/api/orders/signal.js';
@@ -109,7 +109,7 @@ import { onRequestGet as photoServe } from '../functions/api/photos/[[path]].js'
 const ROUTES = [
   { parts: ['api', 'health'], handlers: { GET: healthGet } },
   { parts: ['api', 'products'], handlers: { GET: productsList, POST: productsCreate } },
-  { parts: ['api', 'products', 'photo-debug'], handlers: { GET: photoDebug } },
+  { parts: ['api', 'products', 'photo-debug'], handlers: { GET: photoDebug, POST: photoDebugPost } },
   {
     parts: ['api', 'products', ':id'],
     handlers: { GET: productGet, PUT: productUpdate, DELETE: productDelete },

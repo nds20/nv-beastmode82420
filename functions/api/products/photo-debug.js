@@ -24,6 +24,15 @@ import { requireAdmin } from '../_lib/auth.js';
 
 export const onRequestGet = handle(async (context) => {
   await requireAdmin(context);
+  return runPhotoDebug(context);
+});
+
+export const onRequestPost = handle(async (context) => {
+  await requireAdmin(context);
+  return runPhotoDebug(context);
+});
+
+async function runPhotoDebug(context) {
   const { env } = context;
 
   const report = {
@@ -39,6 +48,37 @@ export const onRequestGet = handle(async (context) => {
 
   const key = `diagnostics/photo-probe-${Date.now()}.txt`;
   const payload = `photo-debug probe ${new Date().toISOString()}`;
+
+  // Multipart transport check (2026-11-10, later): storage was proven
+  // healthy by the original probe, yet the editor's multipart photo
+  // uploads kept failing with a NON-JSON answer the Worker never
+  // produces — evidence the request dies before our JSON handling.
+  // This POST twin accepts a multipart body, parses it with
+  // request.formData() exactly like readProductInput does, and
+  // reports what arrived. POSTed via the same snippet route as the
+  // GET (the caller's signed-in admin token rides along), it bisects
+  // "multipart itself dies in transit" from "something after parse
+  // breaks": a JSON answer here with the file's name/size means
+  // multipart + formData + auth all work in production.
+  report.multipart = null;
+  if (context.request.method === 'POST') {
+    try {
+      const form = await context.request.formData();
+      const file = form.get('photo');
+      report.multipart = {
+        ok: true,
+        photo: file && typeof file === 'object'
+          ? { name: file.name, type: file.type, size: file.size }
+          : null,
+      };
+    } catch (err) {
+      report.multipart = {
+        ok: false,
+        errorName: (err && err.name) || 'Error',
+        errorMessage: String((err && err.message) || err).slice(0, 300),
+      };
+    }
+  }
   const stage = async (name, fn) => {
     const started = Date.now();
     try {
@@ -92,4 +132,4 @@ export const onRequestGet = handle(async (context) => {
     ? `Storage path breaks at stage "${failed.stage}": ${failed.errorMessage || 'see stages'}`
     : 'Storage path is healthy end-to-end (binding present, put/get/delete all succeed). The upload failure is then in the request path itself (body size / multipart handling), not in R2.';
   return json(report);
-});
+}

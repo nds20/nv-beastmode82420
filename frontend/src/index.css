@@ -734,6 +734,15 @@ textarea.ag-input { letter-spacing: normal; text-align: left; }
 }
 a.admin-tab:hover { color: #07304d; }
 .admin-tab.is-active { color: #0d1520; border-bottom-color: var(--gold-dim); }
+/* The Add Product tab is the admin's main action — a filled gold
+   button, not a quiet text tab (owner request 2026-11-10: an easier,
+   obvious way to reach Add Product). */
+.admin-tab-action {
+  background: var(--gold); color: #0d1520; border-radius: 8px 8px 0 0;
+  border-bottom: none;
+}
+a.admin-tab-action:hover { color: #0d1520; filter: brightness(1.07); }
+.admin-tab-action.is-active { background: var(--gold-dim); color: #0d1520; }
 a.btn { text-decoration: none; }
 /* Scroll target for the editor when a list row's Edit is tapped. */
 .editor-anchor { scroll-margin-top: 14px; }

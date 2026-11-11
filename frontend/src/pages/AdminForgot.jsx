@@ -52,7 +52,7 @@ export default function AdminForgot() {
   return (
     <main className="shell">
       <div className="page-head">
-        <p className="kicker">Beastmode 82420</p>
+        <p className="kicker">824 BeastMode L.L.C.</p>
         <h1 className="page-title">Forgot Password</h1>
       </div>
 

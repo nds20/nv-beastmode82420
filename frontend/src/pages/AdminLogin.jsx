@@ -96,7 +96,7 @@ export default function AdminLogin() {
   return (
     <main className="shell">
       <div className="page-head">
-        <p className="kicker">Beastmode 82420</p>
+        <p className="kicker">824 BeastMode L.L.C.</p>
         <h1 className="page-title">{isSetup ? 'Create Admin Account' : 'Admin'}</h1>
       </div>
 

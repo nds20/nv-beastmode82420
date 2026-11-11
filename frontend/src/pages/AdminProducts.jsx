@@ -134,7 +134,7 @@ export default function AdminProducts() {
 
       <div className="page-head admin-head">
         <div>
-          <p className="kicker">Beastmode 82420</p>
+          <p className="kicker">824 BeastMode L.L.C.</p>
           <h1 className="page-title">Products</h1>
         </div>
       </div>

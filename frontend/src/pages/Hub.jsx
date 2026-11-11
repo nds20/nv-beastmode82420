@@ -339,7 +339,7 @@ export default function Hub() {
         </div>
       </section>
 
-      <nav className="hub-links" aria-label="Beastmode 82420 projects">
+      <nav className="hub-links" aria-label="824 BeastMode L.L.C. projects">
         {HUB_LINKS.map((link) => (
           <a
             key={link.label}

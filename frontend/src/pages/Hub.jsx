@@ -172,7 +172,7 @@ function DonateSection() {
       <div className="hub-donate-card">
         <p className="hub-feature-eyebrow">Fuel the Build</p>
         <h2 className="hub-donate-name" id="support-824">
-          Support 824
+          Support 824 BeastMode L.L.C.
         </h2>
         <p className="hub-donate-pitch">
           Right now, donations highlight Project Gamma — the superhero android
@@ -183,7 +183,7 @@ function DonateSection() {
 
         {returned === '1' && (
           <p className="hub-donate-thanks" role="status">
-            Thank you for fueling the build 💙 Your support keeps 824 shipping.
+            Thank you for fueling the build 💙 Your support keeps 824 BeastMode L.L.C. shipping.
           </p>
         )}
         {returned === '0' && (
@@ -313,7 +313,7 @@ export default function Hub() {
 
       <section className="hub-feature" aria-labelledby="fwb-feature">
         <div className="hub-feature-card">
-          <p className="hub-feature-eyebrow">The Keystone of 824 · NV Social Network</p>
+          <p className="hub-feature-eyebrow">The Keystone of 824 BeastMode L.L.C. · NV Social Network</p>
           <h2 className="hub-feature-name" id="fwb-feature">
             Friends With Benefits
           </h2>
@@ -333,7 +333,7 @@ export default function Hub() {
             Google Play
           </p>
           <p className="hub-feature-meta">
-            Part of the NV Social Network — the social umbrella of 824&apos;s
+            Part of the NV Social Network — the social umbrella of 824 BeastMode L.L.C.&apos;s
             Entertainment Division.
           </p>
         </div>
@@ -355,15 +355,15 @@ export default function Hub() {
 
       <section className="hub-about" aria-labelledby="about-824">
         <h2 className="section-title" id="about-824">
-          About 824
+          About 824 BeastMode L.L.C.
         </h2>
         <p>
-          824 is an applied AI company founded by Nicholas Smith. The name comes from
+          824 BeastMode L.L.C. is an applied AI company founded by Nicholas Smith. The name comes from
           August 24 — his wedding anniversary and his father&apos;s birthday — a date that
           stands for building things that last.
         </p>
         <p>
-          The keystone of 824 is{' '}
+          The keystone of 824 BeastMode L.L.C. is{' '}
           <a href={FWB_APP_URL} target="_blank" rel="noreferrer">
             Friends With Benefits
           </a>{' '}
@@ -372,8 +372,8 @@ export default function Hub() {
           React and Cloudflare, protected by 824 Shield, and launched in November
           2026 — with apps for the App Store and Google Play in progress.
           Friends With Benefits is the first member of the NV Social Network —
-          the social umbrella of 824&apos;s new Entertainment Division, where
-          824&apos;s social products live under one roof.
+          the social umbrella of 824 BeastMode L.L.C.&apos;s new Entertainment Division, where
+          824 BeastMode L.L.C.&apos;s social products live under one roof.
         </p>
         <p>
           We build AI that earns its keep: 824 Shield, our AI-driven defense system;
@@ -416,7 +416,7 @@ export default function Hub() {
           every step of the climb is labeled honestly.
         </p>
         <p>
-          And because 824 thinks in machines as well as software: the Queen Victoria,
+          And because 824 BeastMode L.L.C. thinks in machines as well as software: the Queen Victoria,
           our 824 Beastmode Concept prototype — a gloss-black widebody sedan on gold
           wheels, scissor doors up front, and a Kai-blue-stitched cockpit. Her
           showcase is below.

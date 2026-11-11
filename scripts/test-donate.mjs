@@ -246,7 +246,7 @@ console.log('checkout — stripe session');
   check('mode=payment', form.get('mode') === 'payment');
   check('unit_amount is integer cents', form.get('line_items[0][price_data][unit_amount]') === '824', form.get('line_items[0][price_data][unit_amount]'));
   check('currency usd', form.get('line_items[0][price_data][currency]') === 'usd');
-  check('product name names the project', form.get('line_items[0][price_data][product_data][name]') === 'Donation to 824 — 824 Shield', form.get('line_items[0][price_data][product_data][name]'));
+  check('product name names the project', form.get('line_items[0][price_data][product_data][name]') === 'Donation to 824 BeastMode L.L.C. — 824 Shield', form.get('line_items[0][price_data][product_data][name]'));
   check('session metadata kind/project', form.get('metadata[kind]') === 'donation' && form.get('metadata[project]') === '824-shield');
   check('payment_intent metadata kind/project', form.get('payment_intent_data[metadata][kind]') === 'donation' && form.get('payment_intent_data[metadata][project]') === '824-shield');
   check('client_reference_id', form.get('client_reference_id') === 'donation-824-shield');
@@ -260,7 +260,7 @@ console.log('checkout — stripe session');
   });
   const defaultForm = new URLSearchParams(lastStripeCall.init.body);
   check('omitted project defaults to project-gamma', resDefault.status === 200 && defaultForm.get('metadata[project]') === 'project-gamma', defaultForm.get('metadata[project]'));
-  check('min amount $1 accepted with default name', defaultForm.get('line_items[0][price_data][product_data][name]') === 'Donation to 824 — Project Gamma');
+  check('min amount $1 accepted with default name', defaultForm.get('line_items[0][price_data][product_data][name]') === 'Donation to 824 BeastMode L.L.C. — Project Gamma');
 
   stripeBehavior = { status: 402, body: { error: { message: 'Your card was declined.' } } };
   const resFail = await donateCheckout({

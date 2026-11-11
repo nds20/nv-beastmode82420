@@ -159,7 +159,7 @@ export async function createDonationCheckoutSession(env, { amountCents, project,
   form.set('line_items[0][price_data][unit_amount]', String(amountCents));
   form.set(
     'line_items[0][price_data][product_data][name]',
-    `Donation to 824 — ${project.name}`
+    `Donation to 824 BeastMode L.L.C. — ${project.name}`
   );
 
   let response;

@@ -369,6 +369,36 @@ export async function clearErrorLogs() {
   return adminFetch('/api/admin/error-logs', { method: 'DELETE' });
 }
 
+// ----- Diagnostics (2026-11-11) ----------------------------------------------
+//
+//   GET /api/admin/payments-debug  Stripe + webhook + mail facts,
+//        and a reconcile in the same call: paid Checkout Sessions
+//        from the last 3 days are replayed through the webhook's
+//        own handler, so the response's recordedBefore/recordedAfter
+//        fields say exactly what this check repaired. See
+//        docs/PAYMENTS_DEBUG.md.
+//   GET /api/shipping/debug        one live USPS quote attempt with
+//        the diagnostics USPS actually returned (status, error code
+//        and message), bypassing the checkout flat-rate fallback.
+//
+// Both ride adminFetch, so the stored admin bearer token, 401
+// clearing, JSON parsing, and browser-failure reporting behave
+// exactly as they do for every other admin call.
+
+/** Run the payments diagnostic + reconcile. Resolves to the full report. */
+export async function fetchPaymentsDiagnostics() {
+  return adminFetch(
+    '/api/admin/payments-debug',
+    {},
+    { operation: 'payments-diagnostics' }
+  );
+}
+
+/** Run one live USPS shipping diagnostic. Resolves to its verdict report. */
+export async function fetchShippingDiagnostics() {
+  return adminFetch('/api/shipping/debug', {}, { operation: 'shipping-diagnostics' });
+}
+
 // ----- Best Offer inbox (2026-11-10 — docs/OFFERS.md) -------------------------
 //
 //   GET  /api/admin/offers                  { offers, counts } —

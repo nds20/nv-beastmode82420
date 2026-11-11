@@ -328,6 +328,9 @@ export default function AdminDashboard() {
         <Link className="admin-tab" to="/shop/admin/error-logs">
           Error Logs
         </Link>
+        <Link className="admin-tab" to="/shop/admin/diagnostics">
+          Diagnostics
+        </Link>
       </nav>
 
       {authSource === 'demo' && (

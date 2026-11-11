@@ -149,6 +149,9 @@ export default function AdminProducts() {
         <Link className="admin-tab" to="/shop/admin/error-logs">
           Error Logs
         </Link>
+        <Link className="admin-tab" to="/shop/admin/diagnostics">
+          Diagnostics
+        </Link>
       </nav>
 
       <p className="section-sub">

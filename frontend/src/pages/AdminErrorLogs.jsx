@@ -130,6 +130,9 @@ export default function AdminErrorLogs() {
         <span className="admin-tab is-active" aria-current="page">
           Error Logs
         </span>
+        <Link className="admin-tab" to="/shop/admin/diagnostics">
+          Diagnostics
+        </Link>
       </nav>
 
       <p className="section-sub">

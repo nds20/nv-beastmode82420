@@ -793,3 +793,35 @@ a.admin-tab-action:hover { color: #0d1520; filter: brightness(1.07); }
 a.btn { text-decoration: none; }
 /* Scroll target for the editor when a list row's Edit is tapped. */
 .editor-anchor { scroll-margin-top: 14px; }
+
+/* ---------- Admin Diagnostics ---------- */
+/* Two independent checks sit side by side on a wide screen and stack
+   on a phone. Results reuse order-row/stat styling; these rules only
+   supply the page layout and a compact, readable call/result list. */
+.diagnostics-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px; align-items: start; margin-top: 8px;
+}
+.diagnostic-panel { min-width: 0; }
+.diagnostic-panel .section-title { margin-top: 0; }
+.diagnostic-run { width: 100%; }
+.diagnostic-result { margin-top: 18px; }
+.diagnostic-result .admin-stats { margin-bottom: 16px; }
+.diagnostic-facts p { margin: 5px 0; overflow-wrap: anywhere; }
+.diagnostic-subtitle {
+  font-family: var(--display); font-size: 21px; font-weight: 400;
+  letter-spacing: 1.4px; margin: 22px 0 4px;
+}
+.diagnostic-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.diagnostic-line {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; display: flex; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+}
+.diagnostic-call {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 14px; margin: 0; overflow-wrap: anywhere;
+}
+@media (max-width: 800px) {
+  .diagnostics-grid { grid-template-columns: 1fr; gap: 28px; }
+}

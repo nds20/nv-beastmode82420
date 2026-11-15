@@ -42,6 +42,8 @@ const BANK_APP_URL = 'https://nv-824-bank.dp8t78cvgc.workers.dev';
 
 const SPORTS_APP_URL = 'https://nv-sports-app.dp8t78cvgc.workers.dev';
 
+const HELIX_APP_URL = 'https://nv-824-helix.dp8t78cvgc.workers.dev';
+
 const HUB_LINKS = [
   { label: 'LinkedIn', href: 'https://www.LinkedIn.com/in/beastmode82420' },
   { label: 'Biometric Screening Research', href: 'https://github.com/nds20/nv-genomic-trial-match' },
@@ -52,6 +54,9 @@ const HUB_LINKS = [
   // Sports App links to the live app (like the Friends With Benefits
   // pill) and carries the cerulean highlight so it stands out in the row.
   { label: 'Sports App', href: SPORTS_APP_URL, className: 'hub-pill-sports' },
+  // 824 Helix links to the live app (like the Friends With Benefits
+  // and Sports App pills) and carries the cyan highlight.
+  { label: '824 Helix', href: HELIX_APP_URL, className: 'hub-pill-helix' },
   { label: 'Unofficial Muse AI for Windows', href: 'https://github.com/nds20/nv-unofficial-MuseAI-windows-app' },
   { label: '3D Cube Game', href: 'https://muse.ai/s/3d-cube-game-xbxt6xixyxgxwxzxvsxx/2qoD5ps4YhV1YcHPNRi6nfm4bAZTiRccuapyZZ99eaI' },
 ];

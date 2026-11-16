@@ -44,6 +44,8 @@ const SPORTS_APP_URL = 'https://nv-sports-app.dp8t78cvgc.workers.dev';
 
 const HELIX_APP_URL = 'https://nv-824-helix.dp8t78cvgc.workers.dev';
 
+const REVIEW_API_URL = 'https://api.beastmode82420.com';
+
 const HUB_LINKS = [
   { label: 'LinkedIn', href: 'https://www.LinkedIn.com/in/beastmode82420' },
   { label: 'Biometric Screening Research', href: 'https://github.com/nds20/nv-genomic-trial-match' },
@@ -57,6 +59,9 @@ const HUB_LINKS = [
   // 824 Helix links to the live app (like the Friends With Benefits
   // and Sports App pills) and carries the cyan highlight.
   { label: '824 Helix', href: HELIX_APP_URL, className: 'hub-pill-helix' },
+  // Beast Mode Code Review links to the live licensed API (like the
+  // other live-product pills) and carries the sky-blue highlight.
+  { label: 'Beast Mode Code Review', href: REVIEW_API_URL, className: 'hub-pill-review' },
   { label: 'Unofficial Muse AI for Windows', href: 'https://github.com/nds20/nv-unofficial-MuseAI-windows-app' },
   { label: '3D Cube Game', href: 'https://muse.ai/s/3d-cube-game-xbxt6xixyxgxwxzxvsxx/2qoD5ps4YhV1YcHPNRi6nfm4bAZTiRccuapyZZ99eaI' },
 ];
@@ -490,6 +495,37 @@ export default function Hub() {
             loading="lazy"
           />
           <p className="hub-gamma-meta">Announced November 2026 — plans in development.</p>
+        </div>
+      </section>
+
+      <section className="hub-concept" aria-labelledby="beast-mode-code-review">
+        <div className="hub-concept-card">
+          <p className="hub-feature-eyebrow">Licensed Agent Skill · Live Now</p>
+          <h2 className="hub-concept-name" id="beast-mode-code-review">
+            Beast Mode Code Review
+          </h2>
+          <p className="hub-concept-pitch">
+            The 824 code review engine, packaged as a licensed agent skill.
+            A buyer&apos;s agent sends a pull request or a diff to the live
+            API, and the review brain — which lives server-side, never in the
+            buyer&apos;s hands — reads it across correctness, security, data
+            safety, and accessibility. Every finding comes back rated
+            Blocker, Major, Minor, or Nit, under one plain verdict: Ship it,
+            Fix first, or Blocked. Access is license-key gated with monthly
+            quotas, and fixes only ever happen behind a human approval gate —
+            the skill never merges on its own. It is the same review
+            discipline that guards the 824 fleet, now working for other
+            people&apos;s code.
+          </p>
+          <a
+            className="hub-feature-cta"
+            href={REVIEW_API_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Visit the live API
+          </a>
+          <p className="hub-gamma-meta">Live at api.beastmode82420.com · First founder key issued November 2026</p>
         </div>
       </section>
 

@@ -524,6 +524,14 @@ body::before {
   box-shadow: 0 0 0 1px rgba(56, 189, 248, .45), 0 0 18px rgba(56, 189, 248, .55), 0 6px 18px rgba(0, 60, 120, .28);
 }
 .hub-page .hub-pill-review:hover { background: #0284c7; border-color: #0284c7; color: #ffffff; }
+/* 824 Ledger highlight (owner direction 2026-11-23): the Ledger pill
+   stands out in its own sky-blue-on-black — near-black fill with a
+   sky-blue border, text, and glow, filling sky blue on hover. */
+.hub-page .hub-pill-ledger {
+  background: #0b1220; border-color: #38bdf8; color: #7dd3fc;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, .45), 0 0 18px rgba(56, 189, 248, .55), 0 6px 18px rgba(0, 60, 120, .28);
+}
+.hub-page .hub-pill-ledger:hover { background: #38bdf8; border-color: #38bdf8; color: #06121f; }
 .hub-hero img { filter: drop-shadow(0 18px 30px rgba(0,0,0,.35)); }
 .hub-hero { max-width: 660px; margin: 0 auto; padding-top: 34px; }
 .hub-hero img { width: 100%; height: auto; display: block; }

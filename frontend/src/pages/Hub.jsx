@@ -62,6 +62,10 @@ const HUB_LINKS = [
   // Beast Mode Code Review links to the live licensed API (like the
   // other live-product pills) and carries the sky-blue highlight.
   { label: 'Beast Mode Code Review', href: REVIEW_API_URL, className: 'hub-pill-review' },
+  // 824 Ledger is the company's private accounting app, so its pill
+  // points at its hub section below instead of a public app, and it
+  // carries the sky-blue-on-black highlight.
+  { label: '824 Ledger', href: '#824-ledger', className: 'hub-pill-ledger' },
   { label: 'Unofficial Muse AI for Windows', href: 'https://github.com/nds20/nv-unofficial-MuseAI-windows-app' },
   { label: '3D Cube Game', href: 'https://muse.ai/s/3d-cube-game-xbxt6xixyxgxwxzxvsxx/2qoD5ps4YhV1YcHPNRi6nfm4bAZTiRccuapyZZ99eaI' },
 ];
@@ -526,6 +530,30 @@ export default function Hub() {
             Visit the live API
           </a>
           <p className="hub-gamma-meta">Live at api.beastmode82420.com · First founder key issued November 2026</p>
+        </div>
+      </section>
+
+      <section className="hub-concept" aria-labelledby="824-ledger">
+        <div className="hub-concept-card">
+          <p className="hub-feature-eyebrow">Private Accounting · Live Now</p>
+          <h2 className="hub-concept-name" id="824-ledger">
+            824 Ledger
+          </h2>
+          <p className="hub-concept-pitch">
+            The private accounting app of 824 BeastMode L.L.C., built
+            in-house to a CPA-grade standard. A real chart of accounts
+            with owner contributions and draws tracked as equity, bank
+            reconciliation that only closes at a zero difference, Stripe
+            payouts split gross-to-net, a New York sales tax worksheet,
+            estimated tax calculations with safe harbor, receipt scanning
+            that reads totals and dates, mileage, fixed assets, 1099
+            tracking, inventory, and a one-click Year-End Package an
+            accountant can file from. Every change is audit-logged,
+            nothing is ever hard-deleted, and the company tax ID stays
+            encrypted at rest. It is a bookkeeping and reminder tool —
+            it does not file taxes.
+          </p>
+          <p className="hub-gamma-meta">Private by design — the books of 824 BeastMode L.L.C. · Launched November 2026</p>
         </div>
       </section>
 

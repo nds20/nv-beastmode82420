@@ -11,7 +11,7 @@ export default function Footer() {
           <Link to="/shop/login">Log In</Link>
           <Link to="/shop/cart">Cart</Link>
         </nav>
-        <p className="copyright">© 824 BeastMode L.L.C.</p>
+        <p className="copyright">© 2026 824 BeastMode L.L.C.</p>
       </div>
     </footer>
   );
